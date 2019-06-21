@@ -13,7 +13,6 @@ class Instr:
         STORE = next(auto)
         LOAD = next(auto)
         FUNC = next(auto)
-        ARG = next(auto)
         CAPTURE = next(auto)
         RET = next(auto)
         NAME = next(auto)

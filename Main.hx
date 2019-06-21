@@ -2,6 +2,7 @@ import Sys;
 import String;
 import sys.io.File;
 import haxe.rtti.Rtti;
+import StringTools;
 
 class Var {
     private var val : Dynamic;
@@ -16,11 +17,40 @@ class Var {
     }
 }
 
+enum OpType {
+    PASS;
+    INIT;
+    PUSH;
+    POP;
+    CALL;
+    STORE;
+    LOAD;
+    FUNC;
+    CAPTURE;
+    RET;
+    NAME;
+    SPACE;
+    JUMP;
+    JUMPFALSE;
+}
+
 class Opcode {
-    public var op: String;
+    public var op: OpType;
     public var val: Int;
     public function new(op: String, ?val : Int) {
-        this.op = op;
+        if (op == 'pass') this.op = PASS;
+        if (op == 'init')  this.op = INIT;
+        if (op == 'push')  this.op = PUSH;
+        if (op == 'pop')  this.op = POP;
+        if (op == 'call')  this.op = CALL;
+        if (op == 'store')  this.op = STORE;
+        if (op == 'load')  this.op = LOAD;
+        if (op == 'func')  this.op = FUNC;
+        if (op == 'capture')  this.op = CAPTURE;
+        if (op == 'ret')  this.op = RET;
+        if (op == 'space')  this.op = SPACE;
+        if (op == 'jump')  this.op = JUMP;
+        if (op == 'jumpfalse')  this.op = JUMPFALSE;
         this.val = val;
     }
 }
@@ -48,7 +78,7 @@ class Callable {
     }
 }
 
-class Interp {
+class Lisp {
     var locals : Array<Array<Var>>;
     var captures : Array<Var>;
     var stack : Array<Dynamic>;
@@ -65,18 +95,18 @@ class Interp {
     }
     public function initglobals() {
         globals = new Map<String, Dynamic>();
-        function b_print(state: Interp, args: Array<Dynamic>) : Dynamic{
+        function b_print(state: Lisp, args: Array<Dynamic>) : Dynamic{
             for (i in args) {
                 Sys.print(i);
             }
             return null;
         }
-        function b_println(state: Interp, args: Array<Dynamic>) : Dynamic{
+        function b_println(state: Lisp, args: Array<Dynamic>) : Dynamic{
             b_print(state, args);
             Sys.println("");
             return null;
         }
-        function b_add(state: Interp, args: Array<Dynamic>) : Dynamic{
+        function b_add(state: Lisp, args: Array<Dynamic>) : Dynamic{
             var pl = 0;
             var ret : Float = 0;
             while (pl < args.length) {
@@ -85,7 +115,7 @@ class Interp {
             }
             return ret;
         }
-        function b_sub(state: Interp, args: Array<Dynamic>) : Dynamic{
+        function b_sub(state: Lisp, args: Array<Dynamic>) : Dynamic{
             if (args.length == 1) {
                 return -args[0];
             }
@@ -97,7 +127,7 @@ class Interp {
             }
             return ret;
         }
-        function b_mul(state: Interp, args: Array<Dynamic>) : Dynamic{
+        function b_mul(state: Lisp, args: Array<Dynamic>) : Dynamic{
             var pl = 0;
             var ret : Float = 1;
             while (pl < args.length) {
@@ -106,7 +136,7 @@ class Interp {
             }
             return ret;
         }
-        function b_div(state: Interp, args: Array<Dynamic>) : Dynamic{
+        function b_div(state: Lisp, args: Array<Dynamic>) : Dynamic{
             if (args.length == 1) {
                 return 1/args[0];
             }
@@ -118,7 +148,7 @@ class Interp {
             }
             return ret;
         }
-        function b_lt(state: Interp, args: Array<Dynamic>) : Dynamic{
+        function b_lt(state: Lisp, args: Array<Dynamic>) : Dynamic{
             var pl = 1;
             var fst : Float = args[0];
             while (pl < args.length) {
@@ -132,7 +162,63 @@ class Interp {
             }
             return true;
         }
-        function b_neq(state: Interp, args: Array<Dynamic>) : Dynamic{
+        function b_gt(state: Lisp, args: Array<Dynamic>) : Dynamic{
+            var pl = 1;
+            var fst : Float = args[0];
+            while (pl < args.length) {
+                if (fst > args[pl]) {
+                    fst = args[pl];
+                }
+                else {
+                    return false;
+                }
+                pl = pl + 1;
+            }
+            return true;
+        }
+        function b_lte(state: Lisp, args: Array<Dynamic>) : Dynamic{
+            var pl = 1;
+            var fst : Float = args[0];
+            while (pl < args.length) {
+                if (fst <= args[pl]) {
+                    fst = args[pl];
+                }
+                else {
+                    return false;
+                }
+                pl = pl + 1;
+            }
+            return true;
+        }
+        function b_gte(state: Lisp, args: Array<Dynamic>) : Dynamic{
+            var pl = 1;
+            var fst : Float = args[0];
+            while (pl < args.length) {
+                if (fst >= args[pl]) {
+                    fst = args[pl];
+                }
+                else {
+                    return false;
+                }
+                pl = pl + 1;
+            }
+            return true;
+        }
+        function b_eq(state: Lisp, args: Array<Dynamic>) : Dynamic{
+            var pl = 1;
+            var fst : Float = args[0];
+            while (pl < args.length) {
+                if (fst == args[pl]) {
+                    fst = args[pl];
+                }
+                else {
+                    return false;
+                }
+                pl = pl + 1;
+            }
+            return true;
+        }
+        function b_neq(state: Lisp, args: Array<Dynamic>) : Dynamic{
             for (i in 0...args.length) {
                 for (j in (i+1)...args.length) {
                     if (args[i] == args[j]) {
@@ -142,14 +228,29 @@ class Interp {
             }
             return true;
         }
+        function b_time(state: Lisp, args: Array<Dynamic>) : Dynamic{
+            return Sys.time();
+        }
+        function b_timer(state: Lisp, args: Array<Dynamic>) : Dynamic{
+            var otime = Sys.time();
+            return new Callable(function(state: Lisp, args: Array<Dynamic>) : Dynamic{
+                return Sys.time()-otime;
+            });
+        }
+        globals["println"] = new Callable(b_println);
         globals["print"] = new Callable(b_print);
         globals['+'] = new Callable(b_add);
         globals['-'] = new Callable(b_sub);
         globals['*'] = new Callable(b_sub);
         globals['/'] = new Callable(b_sub);
-        globals['<'] = new Callable(b_lt);
+        globals['='] = new Callable(b_eq);
         globals['!='] = new Callable(b_neq);
-        globals["println"] = new Callable(b_println);
+        globals['<'] = new Callable(b_lt);
+        globals['>'] = new Callable(b_gt);
+        globals['<='] = new Callable(b_lte);
+        globals['>='] = new Callable(b_gte);
+        globals['time'] = new Callable(b_time);
+        globals['timer'] = new Callable(b_timer);
     }
     public function runfile(filename: String) {
         if (filename == null) {
@@ -176,7 +277,43 @@ class Interp {
                 }
                 else if (opcode == 'str') {
                     retcodes.push(new Opcode('push', values.length));
-                    values.push(line.substring(16));
+                    var str : Array<String> = [];
+                    var place : Int = 16;
+                    var end : Int = line.length;
+                    while (place < end) {
+                        var cur : String = line.charAt(place);
+                        if (cur == '\\') {
+                            place += 1;
+                            cur = line.charAt(place);
+                            if (cur == '\\') {
+                                str.push('\\');
+                            }
+                            else if (cur == 'n') {
+                                str.push('\n');
+                            }
+                            else if (cur == 'r') {
+                                str.push('\r');
+                            }
+                            else if (cur == 't') {
+                                str.push('\t');
+                            }
+                            else if (cur == 's') {
+                                str.push(' ');
+                            }
+                            else if (cur == '0') {
+                                place = place + 1;
+                                cur = line.substr(place, 2);
+                                var num : Int = (cur.charCodeAt(0)-48)*8 + cur.charCodeAt(1)-48;
+                                str.push(String.fromCharCode(num));
+                                place = place + 1;
+                            }
+                        } 
+                        else {
+                            str.push(cur);
+                        }
+                        place += 1;
+                    }
+                    values.push(str.join(''));
                 }
                 else if (opcode == 'push') {
                     retcodes.push(new Opcode('push', values.length));
@@ -201,72 +338,60 @@ class Interp {
         pl = 0;
         while (pl < codes.length) {
             var cur : Opcode = codes[pl];
-            if (cur.op == 'load') {
-                stack.push(locals[locals.length-1][cur.val].get());
-            }
-            else if (cur.op == 'push') {
-                stack.push(values[cur.val]);
-            }
-            else if (cur.op == 'pop') {
-                stack.pop();
-            }
-            else if (cur.op == 'call') {
-                var localargs : Array<Dynamic>  = [];
-                var argc : Int = cur.val;
-                var rem = argc;
-                for (i in 0...argc) {
-                    localargs.push(stack[stack.length-rem]);
-                    rem -= 1;
-                }
-                for (i in 0...argc) {
+            switch (cur.op) {
+                case LOAD:
+                    stack.push(locals[locals.length-1][cur.val].get());
+                case PUSH:
+                    stack.push(values[cur.val]);
+                case POP:
                     stack.pop();
-                }
-                var func : Callable = stack.pop();
-                if (func.isplace) {
-                    locals.push([]);
-                    var newpl : Place = func.call;
-                    rets.push(pl);
-                    pl = newpl.place;
-                    for (i in localargs) {
-                        locals[locals.length-1].push(new Var(i));
+                case CALL:
+                    var localargs : Array<Dynamic>  = [];
+                    var argc : Int = cur.val;
+                    var rem = argc;
+                    for (i in 0...argc) {
+                        localargs.push(stack[stack.length-rem]);
+                        rem -= 1;
                     }
-                    for (i in newpl.cap) {
-                        locals[locals.length-1].push(i);
+                    for (i in 0...argc) {
+                        stack.pop();
                     }
-                }
-                else {
-                    var rawfunc = func.call;
-                    stack.push(rawfunc(this, localargs));
-                }
-            }
-            else if (cur.op == 'store') {
-                locals[locals.length-1][cur.val].set(stack[stack.length-1]);
-            } 
-            else if (cur.op == 'capture') {
-                captures.push(locals[locals.length-1][cur.val]);
-            }
-            else if (cur.op == 'func') {
-                stack.push(new Callable(new Place(pl, captures), true));
-                captures = [];
-                pl = cur.val;
-            }
-            else if (cur.op == 'jumpfalse') {
-                var cond = stack.pop();
-                if (cond == null || cond == false) {
+                    var func : Callable = stack.pop();
+                    if (func.isplace) {
+                        locals.push([]);
+                        var newpl : Place = func.call;
+                        rets.push(pl);
+                        pl = newpl.place;
+                        for (i in localargs) {
+                            locals[locals.length-1].push(new Var(i));
+                        }
+                        for (i in newpl.cap) {
+                            locals[locals.length-1].push(i);
+                        }
+                    }
+                    else {
+                        var rawfunc = func.call;
+                        stack.push(rawfunc(this, localargs));
+                    }
+                case STORE:
+                    locals[locals.length-1][cur.val].set(stack[stack.length-1]);
+                case CAPTURE:
+                    captures.push(locals[locals.length-1][cur.val]);
+                case FUNC:
+                    stack.push(new Callable(new Place(pl, captures), true));
+                    captures = [];
                     pl = cur.val;
-                }
-            }
-            else if (cur.op == 'jump') {
-                pl = cur.val;                
-            }
-            else if (cur.op == 'ret') {
-                pl = rets.pop();
-                locals.pop();
-            }
-            else if (cur.op == 'pass') {}
-            else{
-                Sys.println(cur.op);
-                Sys.exit(1);
+                case JUMPFALSE:
+                    var cond = stack.pop();
+                    if (cond == null || cond == false) {
+                        pl = cur.val;
+                    }
+                case JUMP:
+                    pl = cur.val;
+                case RET:
+                    pl = rets.pop();
+                    locals.pop();
+                case pass:
             }
             pl += 1;
         }
@@ -277,7 +402,7 @@ class Main {
     static public function main():Void {
         var x = [1, 2, 3];
         var args = Sys.args();
-        var interp = new Interp();
+        var interp = new Lisp();
         interp.runfile(args[0]);
     }
 }

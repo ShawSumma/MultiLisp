@@ -89,14 +89,15 @@ class Root(Node):
 class Define(Node):
     def __init__(self, name, *code):
         self.is_func = isinstance(name, Call)
-        self.place = list(name.func.place)
         if self.is_func:
+            self.place = list(name.func.place)
             self.name = str(name.func)
             self.argnames = []
             for i in name.args:
                 self.argnames.append(str(i))
             self.val = code      
         else:
+            self.place = name.place
             self.name = str(name)
             self.val = code[0]
         self.need_cap = None
