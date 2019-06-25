@@ -5,7 +5,7 @@ from collections import deque
 auto = (i for i in range(256))
 
 class Instr:
-    class Kind(enum.Enum):
+    class Kind(enum.IntEnum):
         INIT = next(auto)
         PUSH = next(auto)
         POP = next(auto)

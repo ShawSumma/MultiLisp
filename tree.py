@@ -228,8 +228,14 @@ class State:
     def __init__(self):
         pass
     def parse(self, code):
-        with open('simple.lark') as f:
-            parser = lark.Lark(f.read())
+        parser = lark.Lark("""
+            start : expr*
+            expr : "(" (NAME | NUM | STR | expr)* ")"
+            NAME : /[^\s0-9\(\)"]+[^\s\(\)"]*/
+            NUM : /\-?[0-9]+(\.[0-9]*)?/
+            STR : /"(?:[^"\\\\]|\\\\.)*"/
+            %ignore /\s+/
+        """)
         ast = parser.parse(code)
         return ast
     def change(self, ast):

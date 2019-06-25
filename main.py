@@ -5,6 +5,7 @@ import math
 import argparse
 import shutil
 import sys
+import pack
 
 sys.setrecursionlimit(100)
 argparser = argparse.ArgumentParser()
@@ -22,9 +23,12 @@ conv.captures()
 walk = walker.Walker()
 walk.walk(conv)
 name, ext = argsparsed.o.split('.')
-if ext == 'pack':
+if ext == 'txt':
     with open(argsparsed.o, 'w') as f:
         for pl, i in enumerate(walk.code):
             f.write(str(i) + '\n')
+elif ext == 'pack':
+    with open(argsparsed.o, 'wb') as f:
+        f.write(pack.packs(walk))
 else:
     raise Exception('unknown extension ' + ext)
