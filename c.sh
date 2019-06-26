@@ -1,4 +1,3 @@
 pypy3 main.py -i $1 -o out.pack &&
-    gcc interp.c -o pack -lm -lgc -Ofast &&
+    clang interp.c lib.c -o pack -lm -lgc -O3 -std=c99 &&
     time ./pack out.pack
-# rm callgrind*

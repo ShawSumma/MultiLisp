@@ -130,7 +130,7 @@ class Define(Node):
         else:
             self.val = self.val.get()
         return self
-
+        
 class If(Node):
     def __init__(self, cond, true, false=None):
         self.cond = cond

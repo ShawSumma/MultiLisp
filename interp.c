@@ -1,72 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <string.h>
-#include <math.h>
-#include <gc.h>
-
-// #define malloc GC_MALLOC
-// #define realloc GC_REALLOC
-
-struct func;
-typedef struct func func;
-struct value;
-typedef struct value value;
-struct opcode;
-typedef struct opcode opcode;
-
-typedef enum {
-    OP_INIT = 0,
-    OP_PUSH,
-    OP_POP,
-    OP_CALL,
-    OP_STORE,
-    OP_LOAD,
-    OP_FUNC,
-    OP_CAPTURE,
-    OP_RET,
-    OP_NAME,
-    OP_SPACE,
-    OP_JUMP,
-    OP_JUMPFALSE,
-} optype;
-
-struct func {
-    union {
-        struct {
-            value **cap;
-            uint32_t place;
-            uint16_t capc;
-        } place;
-        value(*cfn)(uint16_t, value*);
-    } value;
-    enum {
-        FUNC_FROM_C,
-        FUNC_FROM_PACK,
-    } type;
-};
-
-struct value {
-    enum {
-        VALUE_TYPE_NIL,
-        VALUE_TYPE_NUMBER,
-        VALUE_TYPE_STRING,
-        VALUE_TYPE_FUNCTION,
-        VALUE_TYPE_BOOLEAN,
-    } type;
-    union {
-        double n;
-        char *s;
-        func f;
-        bool b;
-    } value;
-};
-
-struct opcode {
-    optype type;
-    uint32_t value;
-};
+#include "interp.h"
 
 value value_num(double n) {
     value v;
@@ -94,7 +26,7 @@ value value_str(char *s) {
     return v;
 }
 
-value value_cfunc(value(*cfn)(uint16_t, value*)) {
+value value_cfunc(value(*cfn)(program, uint16_t, value*)) {
     value v;
     v.type = VALUE_TYPE_FUNCTION;
     v.value.f.type = FUNC_FROM_C;
@@ -121,197 +53,6 @@ value value_func(func f) {
 
 value value_nil() {
     return (value){.type=VALUE_TYPE_NIL};
-}
-
-value lib_println(uint16_t argc, value *argv) {
-    switch (argv[0].type) {
-        case VALUE_TYPE_NIL: {
-            printf("(nil)\n");
-            break;
-        }
-        case VALUE_TYPE_FUNCTION: {
-            printf("function\n");
-            break;
-        }
-        case VALUE_TYPE_NUMBER: {
-            double v = argv[0].value.n;
-            if (fmod(v, 1) == 0) {
-                printf("%ld\n", (int64_t) v);
-            }
-            else {
-                printf("%lf\n", v);
-            }
-            break;
-        }
-        case VALUE_TYPE_STRING: {
-            printf("%s\n", argv[0].value.s);
-            break;
-        }
-        case VALUE_TYPE_BOOLEAN: {
-            printf("%s\n", argv[0].value.b ? "true" : "false");
-            break;
-        }
-    }
-    return value_nil();
-}
-
-value lib_lt(uint16_t argc, value *argv) {
-    double d = argv[0].value.n;
-    for (size_t i = 1; i < argc; i++) {
-        if (d < argv[i].value.n) {
-            d = argv[i].value.n;
-        }
-        else {
-            return value_bool(false);
-        }
-    }
-    return value_bool(true);
-}
-
-value lib_gt(uint16_t argc, value *argv) {
-    double d = argv[0].value.n;
-    for (size_t i = 1; i < argc; i++) {
-        if (d > argv[i].value.n) {
-            d = argv[i].value.n;
-        }
-        else {
-            return value_bool(false);
-        }
-    }
-    return value_bool(true);
-}
-
-value lib_lte(uint16_t argc, value *argv) {
-    double d = argv[0].value.n;
-    for (size_t i = 1; i < argc; i++) {
-        if (d <= argv[i].value.n) {
-            d = argv[i].value.n;
-        }
-        else {
-            return value_bool(false);
-        }
-    }
-    return value_bool(true);
-}
-
-value lib_gte(uint16_t argc, value *argv) {
-    double d = argv[0].value.n;
-    for (size_t i = 1; i < argc; i++) {
-        if (d >= argv[i].value.n) {
-            d = argv[i].value.n;
-        }
-        else {
-            return value_bool(false);
-        }
-    }
-    return value_bool(true);
-}
-
-value lib_neq(uint16_t argc, value *argv) {
-    for (size_t i = 0; i < argc; i++) {
-        value iv = argv[i];
-        for (size_t j = i+1; j < argc; j++) {
-            value jv = argv[i];
-            if (iv.type == jv.type) {
-                switch(iv.type) {
-                    case VALUE_TYPE_NIL: {
-                        return value_bool(false);
-                    }
-                    case VALUE_TYPE_FUNCTION: {
-                        return value_bool(false);
-                    }
-                    case VALUE_TYPE_BOOLEAN: {
-                        if (iv.value.b == jv.value.b) {
-                            return value_bool(false);
-                        }
-                        break;
-                    }
-                    case VALUE_TYPE_NUMBER: {
-                        if (iv.value.n == jv.value.n) {
-                            return value_bool(false);
-                        }
-                        break;
-                    }
-                    case VALUE_TYPE_STRING: {
-                        if (!strcmp(iv.value.s, jv.value.s)) {
-                            return value_bool(false);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    return value_bool(true);
-}
-
-value lib_eq(uint16_t argc, value *argv) {
-    value cmp = argv[0];
-    for (size_t i = 1; i < argc; i++) {
-        value cur = argv[i];
-        if (cmp.type != cur.type) {
-            return value_bool(false);
-        }
-        switch (cmp.type) {
-            case VALUE_TYPE_NIL: {
-                break;
-            }
-            case VALUE_TYPE_FUNCTION: {
-                break;
-            }
-            case VALUE_TYPE_BOOLEAN: {
-                if (cur.value.b != cmp.value.b) {
-                    return value_bool(false);
-                }
-                break;
-            }
-            case VALUE_TYPE_NUMBER: {
-                if (cur.value.n != cmp.value.n) {
-                    return value_bool(false);
-                }
-                break;
-            }
-            case VALUE_TYPE_STRING: {
-                if (strcmp(cur.value.s, cmp.value.s)) {
-                    return value_bool(false);
-                }
-                break;
-            }
-        }
-    }
-    return value_bool(true);
-}
-
-value lib_add(uint16_t argc, value *argv) {
-    double d = 0;
-    for (size_t i = 0; i < argc; i++) {
-        d += argv[i].value.n;
-    }
-    return value_num(d);
-}
-
-value lib_sub(uint16_t argc, value *argv) {
-    double d = argv[0].value.n;
-    for (size_t i = 1; i < argc; i++) {
-        d -= argv[i].value.n;
-    }
-    return value_num(d);
-}
-
-value lib_mul(uint16_t argc, value *argv) {
-    double d = 1;
-    for (size_t i = 0; i < argc; i++) {
-        d *= argv[i].value.n;
-    }
-    return value_num(d);
-}
-
-value lib_div(uint16_t argc, value *argv) {
-    double d = argv[0].value.n;
-    for (size_t i = 1; i < argc; i++) {
-        d /= argv[i].value.n;
-    }
-    return value_num(d);
 }
 
 void runfile(FILE *f) {
@@ -367,60 +108,48 @@ void runfile(FILE *f) {
             if (got == 'l') {
                 if (!strcmp("println", str)) {
                     vals[valindex] = value_cfunc(lib_println);
-                    valindex ++;
                 }
                 else if (!strcmp("<", str)) {
                     vals[valindex] = value_cfunc(lib_lt);
-                    valindex ++;
                 }
                 else if (!strcmp("<=", str)) {
                     vals[valindex] = value_cfunc(lib_lte);
-                    valindex ++;
                 }
                 else if (!strcmp(">", str)) {
                     vals[valindex] = value_cfunc(lib_lte);
-                    valindex ++;
                 }
                 else if (!strcmp(">=", str)) {
                     vals[valindex] = value_cfunc(lib_gte);
-                    valindex ++;
                 }
                 else if (!strcmp("!=", str)) {
                     vals[valindex] = value_cfunc(lib_neq);
-                    valindex ++;
                 }
                 else if (!strcmp("true", str)) {
                     vals[valindex] = value_bool(true);
-                    valindex ++;
                 }
                 else if (!strcmp("false", str)) {
                     vals[valindex] = value_bool(false);
-                    valindex ++;
                 }
                 else if (!strcmp("=", str)) {
                     vals[valindex] = value_cfunc(lib_eq);
-                    valindex ++;
                 }
                 else if (!strcmp("-", str)) {
                     vals[valindex] = value_cfunc(lib_sub);
-                    valindex ++;
                 }
                 else if (!strcmp("*", str)) {
                     vals[valindex] = value_cfunc(lib_mul);
-                    valindex ++;
                 }
                 else if (!strcmp("/", str)) {
                     vals[valindex] = value_cfunc(lib_div);
-                    valindex ++;
                 }
                 else if (!strcmp("+", str)) {
                     vals[valindex] = value_cfunc(lib_add);
-                    valindex ++;
                 }
                 else {
                     printf("could not load name %s\n", str);
                     exit(1);
                 }
+                valindex ++;
                 got = getc(f);
             }
             else {
@@ -457,10 +186,23 @@ void runfile(FILE *f) {
         opcodes[i] = (opcode){.type=code, .value=value};
         got = getc(f);
     }
+    program ret;
+    ret.opcodes = opcodes;
+    ret.opcount = opcount;
+    ret.vals = vals;
+    ret.valcount = valcount;
+    runprogram(ret, 0);
+}
+
+void runprogram(program prog, size_t i) {
+    opcode *opcodes = prog.opcodes;
+    size_t opcount = prog.opcount;
+    value *vals = prog.vals;
+    size_t valcount = prog.valcount;
+
     size_t stacksize = 0;
     size_t stackalloc = 16;
     value *stack = malloc(sizeof(value) * stackalloc);
-
     size_t callalloc = 8;
     size_t callcount = 0;
     size_t *localbackalloc = malloc(sizeof(size_t) * callalloc);
@@ -468,12 +210,12 @@ void runfile(FILE *f) {
     localbackalloc[0] = 8;
     localbackcount[0] = 0;
     value **locals = malloc(sizeof(value *) * callalloc);
-    locals[callcount] = malloc(sizeof(value) * localbackalloc[callcount]);
+    locals[0] = malloc(sizeof(value) * localbackalloc[0]);
     size_t *rets = malloc(sizeof(size_t) * callalloc);
     size_t caploc = 8;
     size_t capc = 0;
     value **capture = malloc(sizeof(value*) * caploc);
-    for (size_t i = 0; i < opcount; i++) {
+    while (i < opcount) {
         opcode op = opcodes[i];
         switch (op.type) {
             case OP_INIT: {
@@ -536,6 +278,9 @@ void runfile(FILE *f) {
             }
             case OP_RET: {
                 free(locals[callcount]);
+                if (callcount == 0) {
+                    goto done;
+                }
                 callcount --;
                 i = rets[callcount];
                 break;
@@ -597,7 +342,7 @@ void runfile(FILE *f) {
                     }
                 }
                 else {
-                    stack[stacksize-1] = f.value.f.value.cfn(op.value, args);
+                    stack[stacksize-1] = f.value.f.value.cfn(prog, op.value, args);
                 }
                 break;
             }
@@ -606,7 +351,9 @@ void runfile(FILE *f) {
                 exit(1);
             }
         }
+        i ++;
     }
+    done:
     free(localbackalloc);
     free(localbackcount);
     free(locals);
