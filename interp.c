@@ -6,8 +6,8 @@
 #include <math.h>
 #include <gc.h>
 
-#define malloc GC_MALLOC
-#define realloc GC_REALLOC
+// #define malloc GC_MALLOC
+// #define realloc GC_REALLOC
 
 struct func;
 typedef struct func func;
@@ -29,7 +29,7 @@ typedef enum {
     OP_NAME,
     OP_SPACE,
     OP_JUMP,
-    OP_JUMPFALSE
+    OP_JUMPFALSE,
 } optype;
 
 struct func {
@@ -85,7 +85,12 @@ value value_bool(bool b) {
 value value_str(char *s) {
     value v;
     v.type = VALUE_TYPE_STRING;
-    v.value.s = s;
+    v.value.s = GC_MALLOC(sizeof(char) * strlen(s));
+    size_t i = 0;
+    while (s[i]) {
+        v.value.s[i] = s[i];
+        i++;
+    }
     return v;
 }
 
@@ -163,6 +168,120 @@ value lib_lt(uint16_t argc, value *argv) {
     return value_bool(true);
 }
 
+value lib_gt(uint16_t argc, value *argv) {
+    double d = argv[0].value.n;
+    for (size_t i = 1; i < argc; i++) {
+        if (d > argv[i].value.n) {
+            d = argv[i].value.n;
+        }
+        else {
+            return value_bool(false);
+        }
+    }
+    return value_bool(true);
+}
+
+value lib_lte(uint16_t argc, value *argv) {
+    double d = argv[0].value.n;
+    for (size_t i = 1; i < argc; i++) {
+        if (d <= argv[i].value.n) {
+            d = argv[i].value.n;
+        }
+        else {
+            return value_bool(false);
+        }
+    }
+    return value_bool(true);
+}
+
+value lib_gte(uint16_t argc, value *argv) {
+    double d = argv[0].value.n;
+    for (size_t i = 1; i < argc; i++) {
+        if (d >= argv[i].value.n) {
+            d = argv[i].value.n;
+        }
+        else {
+            return value_bool(false);
+        }
+    }
+    return value_bool(true);
+}
+
+value lib_neq(uint16_t argc, value *argv) {
+    for (size_t i = 0; i < argc; i++) {
+        value iv = argv[i];
+        for (size_t j = i+1; j < argc; j++) {
+            value jv = argv[i];
+            if (iv.type == jv.type) {
+                switch(iv.type) {
+                    case VALUE_TYPE_NIL: {
+                        return value_bool(false);
+                    }
+                    case VALUE_TYPE_FUNCTION: {
+                        return value_bool(false);
+                    }
+                    case VALUE_TYPE_BOOLEAN: {
+                        if (iv.value.b == jv.value.b) {
+                            return value_bool(false);
+                        }
+                        break;
+                    }
+                    case VALUE_TYPE_NUMBER: {
+                        if (iv.value.n == jv.value.n) {
+                            return value_bool(false);
+                        }
+                        break;
+                    }
+                    case VALUE_TYPE_STRING: {
+                        if (!strcmp(iv.value.s, jv.value.s)) {
+                            return value_bool(false);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return value_bool(true);
+}
+
+value lib_eq(uint16_t argc, value *argv) {
+    value cmp = argv[0];
+    for (size_t i = 1; i < argc; i++) {
+        value cur = argv[i];
+        if (cmp.type != cur.type) {
+            return value_bool(false);
+        }
+        switch (cmp.type) {
+            case VALUE_TYPE_NIL: {
+                break;
+            }
+            case VALUE_TYPE_FUNCTION: {
+                break;
+            }
+            case VALUE_TYPE_BOOLEAN: {
+                if (cur.value.b != cmp.value.b) {
+                    return value_bool(false);
+                }
+                break;
+            }
+            case VALUE_TYPE_NUMBER: {
+                if (cur.value.n != cmp.value.n) {
+                    return value_bool(false);
+                }
+                break;
+            }
+            case VALUE_TYPE_STRING: {
+                if (strcmp(cur.value.s, cmp.value.s)) {
+                    return value_bool(false);
+                }
+                break;
+            }
+        }
+    }
+    return value_bool(true);
+}
+
 value lib_add(uint16_t argc, value *argv) {
     double d = 0;
     for (size_t i = 0; i < argc; i++) {
@@ -175,6 +294,22 @@ value lib_sub(uint16_t argc, value *argv) {
     double d = argv[0].value.n;
     for (size_t i = 1; i < argc; i++) {
         d -= argv[i].value.n;
+    }
+    return value_num(d);
+}
+
+value lib_mul(uint16_t argc, value *argv) {
+    double d = 1;
+    for (size_t i = 0; i < argc; i++) {
+        d *= argv[i].value.n;
+    }
+    return value_num(d);
+}
+
+value lib_div(uint16_t argc, value *argv) {
+    double d = argv[0].value.n;
+    for (size_t i = 1; i < argc; i++) {
+        d /= argv[i].value.n;
     }
     return value_num(d);
 }
@@ -238,8 +373,44 @@ void runfile(FILE *f) {
                     vals[valindex] = value_cfunc(lib_lt);
                     valindex ++;
                 }
+                else if (!strcmp("<=", str)) {
+                    vals[valindex] = value_cfunc(lib_lte);
+                    valindex ++;
+                }
+                else if (!strcmp(">", str)) {
+                    vals[valindex] = value_cfunc(lib_lte);
+                    valindex ++;
+                }
+                else if (!strcmp(">=", str)) {
+                    vals[valindex] = value_cfunc(lib_gte);
+                    valindex ++;
+                }
+                else if (!strcmp("!=", str)) {
+                    vals[valindex] = value_cfunc(lib_neq);
+                    valindex ++;
+                }
+                else if (!strcmp("true", str)) {
+                    vals[valindex] = value_bool(true);
+                    valindex ++;
+                }
+                else if (!strcmp("false", str)) {
+                    vals[valindex] = value_bool(false);
+                    valindex ++;
+                }
+                else if (!strcmp("=", str)) {
+                    vals[valindex] = value_cfunc(lib_eq);
+                    valindex ++;
+                }
                 else if (!strcmp("-", str)) {
                     vals[valindex] = value_cfunc(lib_sub);
+                    valindex ++;
+                }
+                else if (!strcmp("*", str)) {
+                    vals[valindex] = value_cfunc(lib_mul);
+                    valindex ++;
+                }
+                else if (!strcmp("/", str)) {
+                    vals[valindex] = value_cfunc(lib_div);
                     valindex ++;
                 }
                 else if (!strcmp("+", str)) {
@@ -247,7 +418,7 @@ void runfile(FILE *f) {
                     valindex ++;
                 }
                 else {
-                    printf("no such value %s\n", str);
+                    printf("could not load name %s\n", str);
                     exit(1);
                 }
                 got = getc(f);
@@ -256,6 +427,7 @@ void runfile(FILE *f) {
                 vals[valindex] = value_str(str);
                 valindex ++;
             }
+            free(str);
         }
     }
     size_t opcount = 0;
@@ -267,7 +439,7 @@ void runfile(FILE *f) {
     }
     opcount /= 2;
     got = getc(f);
-    opcode *opcodes = malloc(sizeof(opcode) * opcount);
+    opcode *opcodes = malloc(sizeof(opcode) * (opcount));
     for (size_t i = 0; i < opcount; i++) {
         uint8_t code = (got-'0')*10 + getc(f)-'0';
         uint32_t value = 0;
@@ -302,10 +474,6 @@ void runfile(FILE *f) {
     size_t capc = 0;
     value **capture = malloc(sizeof(value*) * caploc);
     for (size_t i = 0; i < opcount; i++) {
-        if (stacksize + 4 > stackalloc) {
-            stackalloc *= 2;
-            stack = realloc(stack, sizeof(value) * stackalloc);
-        }
         opcode op = opcodes[i];
         switch (op.type) {
             case OP_INIT: {
@@ -339,6 +507,10 @@ void runfile(FILE *f) {
                 break;
             }
             case OP_FUNC: {
+                if (stacksize + 4 > stackalloc) {
+                    stackalloc *= 2;
+                    stack = realloc(stack, sizeof(value) * stackalloc);
+                }
                 stack[stacksize] = value_packfunc(capc, capture, i);
                 stacksize ++;
                 i = op.value;
@@ -363,11 +535,16 @@ void runfile(FILE *f) {
                 break;
             }
             case OP_RET: {
+                free(locals[callcount]);
                 callcount --;
                 i = rets[callcount];
                 break;
             }
             case OP_LOAD: {
+                if (stacksize + 4 > stackalloc) {
+                    stackalloc *= 2;
+                    stack = realloc(stack, sizeof(value) * stackalloc);
+                }
                 stack[stacksize] = locals[callcount][op.value];
                 stacksize ++;
                 break;
@@ -377,6 +554,10 @@ void runfile(FILE *f) {
                 break;
             }
             case OP_PUSH: {
+                if (stacksize + 4 > stackalloc) {
+                    stackalloc *= 2;
+                    stack = realloc(stack, sizeof(value) * stackalloc);
+                }
                 stack[stacksize] = vals[op.value];
                 stacksize ++;
                 break;
@@ -404,7 +585,7 @@ void runfile(FILE *f) {
                     }
                     rets[callcount] = i;
                     callcount ++;
-                    localbackalloc[callcount] = f.value.f.value.place.capc + op.value + 5;
+                    localbackalloc[callcount] = f.value.f.value.place.capc + op.value + 2;
                     localbackcount[callcount] = f.value.f.value.place.capc + op.value;
                     locals[callcount] = malloc(sizeof(value) * localbackalloc[callcount]);
                     i = f.value.f.value.place.place;
@@ -426,9 +607,16 @@ void runfile(FILE *f) {
             }
         }
     }
+    free(localbackalloc);
+    free(localbackcount);
+    free(locals);
+    free(vals);
+    free(stack);
+    free(rets);
 }
 
 int main(int argc, char **argv) {
+    GC_INIT();
     if (argc != 2) {
         printf("one argument must be provided\n");
         exit(1);

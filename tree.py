@@ -103,6 +103,9 @@ class Define(Node):
         self.need_cap = None
         self.all_locals = None
     def captures(self, ctx):
+        if self.name in ctx.locals:
+            print("error: redifine %s" % self.name)
+            exit(1)
         ctx.local(self.name)
         if self.is_func:
             # ctx.add('define')
