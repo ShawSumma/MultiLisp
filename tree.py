@@ -21,9 +21,16 @@ class Capture:
         if item not in self.locals:
             self.locals.append(item)
     def get_cap(self):
-        return [i for i in self.items if i not in self.locals]
+        ret = []
+        for i in self.items:
+            if i not in self.locals:
+                ret.append(i)
+        return ret
     def get_names(self):
-        ret = list(self.items)
+        ret = []
+        for i in self.items:
+            if i not in ret:
+                ret.append(i)
         for i in self.locals:
             if i not in ret:
                 ret.append(i)
@@ -88,10 +95,10 @@ class Root(Node):
 
 class Define(Node):
     def __init__(self, name, *code):
-        self.is_func = isinstance(name, Call)
-        if self.is_func:
-            self.place = list(name.func.place)
-            self.name = str(name.func)
+        self.is_pack_func = isinstance(name, Call)
+        if self.is_pack_func:
+            self.place = list(name.pack_func.place)
+            self.name = str(name.pack_func)
             self.argnames = []
             for i in name.args:
                 self.argnames.append(str(i))
@@ -107,7 +114,7 @@ class Define(Node):
             print("error: redifine %s" % self.name)
             exit(1)
         ctx.local(self.name)
-        if self.is_func:
+        if self.is_pack_func:
             # ctx.add('define')
             new_ctx = Capture()
             # new_ctx.local(self.name)
@@ -122,7 +129,7 @@ class Define(Node):
         else:
             self.capture(self.val, ctx)
     def get(self):
-        if self.is_func:
+        if self.is_pack_func:
             val = []
             for i in self.val:
                 val.append(i.get())
@@ -151,8 +158,8 @@ class If(Node):
 class Lambda(Node):
     def __init__(self, args, *code):
         self.argnames= []
-        if args.func is not None:
-            self.argnames.append(str(args.func))
+        if args.pack_func is not None:
+            self.argnames.append(str(args.pack_func))
         for i in args.args:
             self.argnames.append(str(i))
         self.code = code
@@ -176,15 +183,15 @@ class Lambda(Node):
         return self
 
 class Call(Node):
-    def __init__(self, func=None, *args):
-        self.func = func
+    def __init__(self, pack_func=None, *args):
+        self.pack_func = pack_func
         self.args = args
     def is_empty(self):
-        return self.func is not None
+        return self.pack_func is not None
     def is_namecall(self):
-        return isinstance(self.func, Load)
+        return isinstance(self.pack_func, Load)
     def is_calling(self, name):
-        return self.is_namecall() and self.func == name
+        return self.is_namecall() and self.pack_func == name
     def get(self):
         if self.is_calling('define'):
             return Define(*self.args).get()
@@ -193,14 +200,14 @@ class Call(Node):
         elif self.is_calling('if'):
             return If(*self.args).get()
         else:
-            self.func = self.func.get()
+            self.pack_func = self.pack_func.get()
             args = []
             for i in self.args:
                 args.append(i.get())
             self.args = args
             return self
     def captures(self, ctx):
-        self.capture(self.func, ctx)
+        self.capture(self.pack_func, ctx)
         for i in self.args:
             self.capture(i, ctx)
 

@@ -38,8 +38,8 @@ class Walker:
         self.places = [[1, 1]]
         self.locals = []
         self.ctx = []
-    def emit(self, opcode, *values):
-        self.code.append(Instr(opcode, *values))
+    def emit(self, pack_opcode, *pack_values):
+        self.code.append(Instr(pack_opcode, *pack_values))
         self.places.append(self.places[-1])
     def local_where(self, name):
         ret = self.ctx[-1].all_locals.index(name)
@@ -76,7 +76,7 @@ class Walker:
         self.code[begin].vals.append(iffalse)
         self.code[iffalse].vals.append(len(self.code)-1)
     def walk_call(self, node):
-        self.walk(node.func)
+        self.walk(node.pack_func)
         for i in node.args:
             self.walk(i)
         self.emit(Instr.Kind.CALL, len(node.args))
@@ -95,9 +95,9 @@ class Walker:
         self.ctx_enter(node)
         for i in node.all_locals:
             if i in node.argnames:
-                self.emit(Instr.Kind.ARG, True)
+                pass
             elif i in node.need_cap:
-                self.emit(Instr.Kind.ARG, False)
+                pass
             else:
                 self.emit(Instr.Kind.SPACE)
         for i in node.code:
@@ -111,7 +111,7 @@ class Walker:
         self.emit(Instr.Kind.RET)
         self.ctx_exit()
     def walk_define(self, node):
-        if node.is_func:
+        if node.is_pack_func:
             for i in node.need_cap:
                 self.emit(Instr.Kind.CAPTURE, self.local_where(i))
             place = len(self.code)
@@ -121,10 +121,8 @@ class Walker:
             for i in node.all_locals:
                 if i in node.argnames:
                     pass
-                    # self.emit(Instr.Kind.ARG, True)
                 elif i in node.need_cap:
                     pass
-                    # self.emit(Instr.Kind.ARG, False)
                 else:
                     self.emit(Instr.Kind.SPACE)
             for i in node.val:
