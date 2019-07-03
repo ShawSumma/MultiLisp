@@ -4,7 +4,7 @@ __pycache__
 out
 *.exe
 *.out
-pack
 perf*
 out.pack
+c/pack
 out.txt

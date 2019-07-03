@@ -1,4 +1,14 @@
-(define (rec n)
-    (if (!= n 0)
-        (rec (- n 1))))
-(rec 100000)
+(define (fac n)
+    (if (= n 0)
+        1
+        (*
+            (fac (- n 1))
+            1)))
+
+(define (f n)
+    (fac 5)
+    (if (= n 0)
+        (println "done")
+        (f (- n 1))))
+
+(f 20000000)
