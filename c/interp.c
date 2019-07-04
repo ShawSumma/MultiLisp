@@ -28,7 +28,7 @@ pack_value pack_value_str(pack_state *state, char *s) {
     return v;
 }
 
-pack_value pack_value_cfunc(pack_state *state, pack_value (*cfn)(pack_state *, uint16_t, pack_value **, uint16_t, pack_value *)) {
+pack_value pack_value_cfunc(pack_state *state, pack_value (*cfn)(pack_state *, uint16_t, pack_local_value *, uint16_t, pack_value *)) {
     pack_value v;
     v.type = VALUE_TYPE_FUNCTION;
     v.value.f = gc_malloc(sizeof(pack_func));
@@ -39,7 +39,7 @@ pack_value pack_value_cfunc(pack_state *state, pack_value (*cfn)(pack_state *, u
     return v;
 }
 
-pack_value pack_value_packfunc(pack_state *state, uint16_t capc, pack_value **cap, uint32_t place) {
+pack_value pack_value_packfunc(pack_state *state, uint16_t capc, pack_local_value *cap, uint32_t place) {
     pack_value v;
     v.type = VALUE_TYPE_FUNCTION;
     v.value.f = gc_malloc(sizeof(pack_func));
@@ -178,24 +178,20 @@ void runfile(pack_state *state, FILE *f) {
         got = getc(f);
     }
     opcount /= 2;
-    got = getc(f);
     pack_opcode *opcodes = gc_malloc(sizeof(pack_opcode) * (opcount));
     for (size_t i = 0; i < opcount; i++) {
-        uint8_t code = (got-'0')*10 + getc(f)-'0';
+        uint8_t code = (getc(f)-'0')*10 + getc(f)-'0';
         uint32_t value = 0;
         if (got == EOF) {
             break;
         }
-        if (code > 10) {
-            got = getc(f);
-        }
+        got = getc(f);
         while (got != 'e') {
             value *= 10;
             value += got-'0';
             got = getc(f);
         }
         opcodes[i] = (pack_opcode){.type=code, .value=value};
-        got = getc(f);
     }
     pack_program ret;
     ret.pack_opcodes = opcodes;
@@ -206,7 +202,7 @@ void runfile(pack_state *state, FILE *f) {
     runpack_program(state, 0, NULL, 0, NULL, 0);
 }
 
-pack_value runpack_program(pack_state *state, size_t capc, pack_value **cap, size_t argc, pack_value *argv, size_t i) {
+pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap, size_t argc, pack_value *argv, size_t i) {
     pack_opcode *pack_opcodes = state->prog.pack_opcodes;
     size_t opcount = state->prog.opcount;
     pack_value *vals = state->prog.vals;
@@ -214,11 +210,11 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_value **cap, siz
     state->localindex += argc + capc;
     if (state->localindex + 2 > state->localalloc) {
         state->localalloc *= 2;
-        state->locals = gc_realloc(state->locals, sizeof(pack_value *)*state->localalloc);
+        state->locals = gc_realloc(state->locals, sizeof(pack_local_value)*state->localalloc);
     }
     for (size_t j = 0; j < argc; j++) {
-        state->locals[blocal + j] = gc_malloc(sizeof(pack_value));
-        *state->locals[blocal + j] = argv[j];
+        state->locals[blocal + j].ismut = false;
+        state->locals[blocal + j].value.imut = argv[j];
     }
     for (size_t j = 0; j < capc; j++) {
         state->locals[blocal + j+argc] = cap[j];
@@ -230,7 +226,7 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_value **cap, siz
             case OP_PUSH: {
                 if (state->stackindex + 4 > state->stackalloc) {
                     state->stackalloc *= 2;
-                    state->stack = gc_realloc(state->stack, sizeof(pack_value ) * state->stackalloc);
+                    state->stack = gc_realloc(state->stack, sizeof(pack_value) * state->stackalloc);
                 }
                 state->stack[state->stackindex] = vals[op.value];
                 state->stackindex ++;
@@ -239,9 +235,15 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_value **cap, siz
             case OP_LOAD: {
                 if (state->stackindex + 4 > state->stackalloc) {
                     state->stackalloc *= 2;
-                    state->stack = gc_realloc(state->stack, sizeof(pack_value ) * state->stackalloc);
+                    state->stack = gc_realloc(state->stack, sizeof(pack_value) * state->stackalloc);
                 }
-                state->stack[state->stackindex] = *state->locals[blocal + op.value];
+                pack_local_value lv = state->locals[blocal + op.value];
+                if (lv.ismut) {
+                    state->stack[state->stackindex] = *lv.value.mut;
+                }
+                else {
+                    state->stack[state->stackindex] = lv.value.imut;
+                }
                 state->stackindex ++;
                 break;
             }
@@ -250,26 +252,29 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_value **cap, siz
                 break;
             }
             case OP_STORE: {
-                *state->locals[blocal + op.value] = state->stack[state->stackindex-1];
+                *state->locals[blocal + op.value].value.mut = state->stack[state->stackindex-1];
                 break;
             }
             case OP_NAME: {
                 if (state->localindex + 2 > state->localalloc) {
                     state->localalloc *= 2;
-                    state->locals = gc_realloc(state->locals, sizeof(pack_value *) * state->localalloc);
+                    printf("realloc");
+                    state->locals = gc_realloc(state->locals, sizeof(pack_local_value)*state->localalloc);
                 } 
-                state->locals[state->localindex] = gc_malloc(sizeof(pack_value));
-                *state->locals[state->localindex] = vals[op.value];
+                // state->locals[state->localindex].value.mut = gc_malloc(sizeof(pack_value));
+                state->locals[state->localindex].ismut = false;
+                state->locals[state->localindex].value.imut = vals[op.value];
                 state->localindex ++;
                 break;
             }
             case OP_SPACE: {
                 if (state->localindex + 2 > state->localalloc) {
                     state->localalloc *= 2;
-                    state->locals = gc_realloc(state->locals, sizeof(pack_value *) * state->localalloc);
+                    state->locals = gc_realloc(state->locals, sizeof(pack_local_value) * state->localalloc);
                 } 
-                state->locals[state->localindex] = gc_malloc(sizeof(pack_value));
-                *state->locals[state->localindex] = pack_value_nil(state);
+                state->locals[state->localindex].ismut = true;
+                state->locals[state->localindex].value.mut = gc_malloc(sizeof(pack_value));
+                *state->locals[state->localindex].value.mut = pack_value_nil(state);
                 state->localindex ++;
                 break;
             }
@@ -285,7 +290,8 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_value **cap, siz
             case OP_FUNC: {
                 if (state->stackindex + 4 > state->stackalloc) {
                     state->stackalloc *= 2;
-                    state->stack = gc_realloc(state->stack, sizeof(pack_value ) * state->stackalloc);
+                    printf("realloc");
+                    state->stack = gc_realloc(state->stack, sizeof(pack_value) * state->stackalloc);
                 }
                 state->stack[state->stackindex] = pack_value_packfunc(state, state->capc, state->capture, i);
                 state->stackindex ++;
@@ -323,6 +329,7 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_value **cap, siz
                 state->stackindex -= op.value;
                 pack_value vf = state->stack[state->stackindex-1];
                 if (vf.type != VALUE_TYPE_FUNCTION) {
+                    pack_clib_println(1, &vf);
                     printf("cannot call that\n");
                     exit(1);
                 }
@@ -334,9 +341,6 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_value **cap, siz
                 else {
                     state->stack[state->stackindex-1] = f.value.cfn(state, f.capc, f.cap, op.value, args);
                 }
-                break;
-            }
-            case OP_INIT: {
                 break;
             }
             default: {

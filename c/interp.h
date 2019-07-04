@@ -6,7 +6,6 @@
 #include <string.h>
 #include <math.h>
 #include <gc.h>
-#include <gmp.h>
 
 #define gc_malloc GC_malloc
 #define gc_realloc GC_realloc
@@ -24,10 +23,12 @@ struct pack_pair;
 typedef struct pack_pair pack_pair;
 struct pack_state;
 typedef struct pack_state pack_state;
+struct pack_local_value;
+typedef struct pack_local_value pack_local_value;
 
 typedef enum {
-    OP_INIT = 0,
-    OP_PUSH,
+    // OP_INIT = 0,
+    OP_PUSH = 0,
     OP_POP,
     OP_CALL,
     OP_STORE,
@@ -47,10 +48,10 @@ typedef enum {
 } pack_mark;
 
 struct pack_func {
-    pack_value **cap;
+    pack_local_value *cap;
     union {
         uint32_t place;
-        pack_value (*cfn)(pack_state *, uint16_t, pack_value **, uint16_t, pack_value *);
+        pack_value (*cfn)(pack_state *, uint16_t, pack_local_value *, uint16_t, pack_value *);
     } value;
     enum {
         FUNC_FROM_C,
@@ -94,15 +95,23 @@ struct pack_program {
 
 struct pack_state {
     pack_program prog;
-    pack_value **locals;
+    pack_local_value *locals;
     size_t localalloc;
     size_t localindex;
     pack_value *stack;
     size_t stackalloc;
     size_t stackindex;
-    pack_value **capture;
+    pack_local_value *capture;
     size_t caploc;
     size_t capc;
+};
+
+struct pack_local_value {
+    bool ismut;
+    union {
+        pack_value imut;
+        pack_value *mut;
+    } value;
 };
 
 pack_value pack_value_num(pack_state *, double);
@@ -110,14 +119,14 @@ pack_value pack_value_bool(pack_state *, bool);
 pack_value pack_value_str(pack_state *, char *);
 pack_value pack_value_cfunc(
     pack_state *,
-    pack_value (*)(pack_state *, uint16_t, pack_value **, uint16_t, pack_value *)
+    pack_value (*)(pack_state *, uint16_t, pack_local_value *, uint16_t, pack_value *)
 );
-pack_value pack_value_packfunc(pack_state *, uint16_t, pack_value **, uint32_t);
+pack_value pack_value_packfunc(pack_state *, uint16_t, pack_local_value *, uint32_t);
 pack_value pack_value_pack_func(pack_state *, pack_func);
 pack_value pack_value_nil(pack_state *);
 
 void runfile(pack_state *, FILE *);
-pack_value runpack_program(pack_state *, size_t, pack_value **, size_t, pack_value *, size_t);
+pack_value runpack_program(pack_state *, size_t, pack_local_value *, size_t, pack_value *, size_t);
 
 #include "state.h"
 #include "clib.h"

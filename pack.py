@@ -44,7 +44,7 @@ def packs(walk):
         op = str(int(i.kind)).encode('ascii')
         if len(op) == 1:
             op = b'0'+op
-        # print(hexv)
+        # print(op.decode('ascii'))
         instrs.append(op + hexv)
         instrs.append(b'e')
     return str(len(data)).encode('ascii') + b'e' + b''.join(data) + b':' + str(len(instrs)).encode('ascii') + b'e' + b''.join(instrs)

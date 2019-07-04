@@ -5,8 +5,8 @@ from collections import deque
 auto = (i for i in range(256))
 
 class Instr:
-    class Kind(enum.IntEnum):
-        INIT = next(auto)
+    class Kind:
+        # INIT = next(auto)
         PUSH = next(auto)
         POP = next(auto)
         CALL = next(auto)
@@ -19,7 +19,6 @@ class Instr:
         SPACE = next(auto)
         JUMP = next(auto)
         JUMPFALSE = next(auto)
-
     def __init__(self, kind, *vals):
         self.kind = kind
         self.vals = deque(vals)
@@ -51,7 +50,7 @@ class Walker:
         self.locals.pop()
         self.ctx.pop()
     def walk_root(self, node):
-        self.emit(Instr.Kind.INIT)
+        # self.emit(Instr.Kind.INIT)
         self.ctx_enter(node)
         for i in node.all_locals:
             if i not in node.need_cap:
