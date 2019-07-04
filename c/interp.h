@@ -10,6 +10,9 @@
 #define gc_malloc GC_malloc
 #define gc_realloc GC_realloc
 #define gc_free GC_free
+// #define gc_malloc malloc
+// #define gc_realloc realloc
+// #define gc_free free
 
 struct pack_func;
 typedef struct pack_func pack_func;

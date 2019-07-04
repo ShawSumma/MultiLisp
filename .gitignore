@@ -8,3 +8,5 @@ perf*
 out.pack
 c/pack
 out.txt
+read.c
+read.h

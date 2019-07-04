@@ -258,7 +258,6 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap
             case OP_NAME: {
                 if (state->localindex + 2 > state->localalloc) {
                     state->localalloc *= 2;
-                    printf("realloc");
                     state->locals = gc_realloc(state->locals, sizeof(pack_local_value)*state->localalloc);
                 } 
                 // state->locals[state->localindex].value.mut = gc_malloc(sizeof(pack_value));
@@ -281,23 +280,22 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap
             case OP_CAPTURE: {
                 if (state->capc + 2 > state->caploc) {
                     state->caploc *= 2;
-                    state->capture = gc_realloc(state->capture, sizeof(pack_value *) * state->caploc);
+                    state->capture = gc_realloc(state->capture, sizeof(pack_local_value) * state->caploc);
                 }
-                state->capture[state->capc] = state->locals[blocal + op.value]; 
+                state->capture[state->capc] = state->locals[blocal + op.value];
                 state->capc ++;
                 break;
             }
             case OP_FUNC: {
                 if (state->stackindex + 4 > state->stackalloc) {
                     state->stackalloc *= 2;
-                    printf("realloc");
                     state->stack = gc_realloc(state->stack, sizeof(pack_value) * state->stackalloc);
                 }
                 state->stack[state->stackindex] = pack_value_packfunc(state, state->capc, state->capture, i);
                 state->stackindex ++;
                 state->caploc = state->capc + 2;
                 state->capc = 0;
-                state-> capture = gc_malloc(sizeof(pack_value ) * state->caploc);
+                state->capture = gc_malloc(sizeof(pack_local_value) * state->caploc);
                 i = op.value;
                 break;
             }
@@ -329,7 +327,6 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap
                 state->stackindex -= op.value;
                 pack_value vf = state->stack[state->stackindex-1];
                 if (vf.type != VALUE_TYPE_FUNCTION) {
-                    pack_clib_println(1, &vf);
                     printf("cannot call that\n");
                     exit(1);
                 }
