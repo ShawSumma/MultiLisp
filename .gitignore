@@ -10,3 +10,7 @@ c/pack
 out.txt
 read.c
 read.h
+python
+tcc
+*.o
+*.so

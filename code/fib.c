@@ -1,6 +1,7 @@
 #include <stdio.h>
+#include <stdint.h>
 
-double fib(double n) {
+uint64_t fib(uint32_t n) {
     if (n < 2) {
         return n;
     }
@@ -10,5 +11,5 @@ double fib(double n) {
 }
 
 int main() {
-    printf("%lf\n", fib(37));
+    printf("%lu\n", fib(37));
 }

@@ -79,7 +79,7 @@ void pack_ast_dumpd(pack_ast_node *node, size_t depth) {
             for (size_t i = 0; i < depth+1; i++) {
                 printf("  ");
             }
-            printf("%lf\n", node->value.number);
+            printf("%lf\n", node->value.numberumber);
             break;
         }
         case PACK_AST_NODE_STRING: {
@@ -87,7 +87,7 @@ void pack_ast_dumpd(pack_ast_node *node, size_t depth) {
             for (size_t i = 0; i < depth+1; i++) {
                 printf("  ");
             }
-            printf("\"%s\n\"", node->value.string);
+            printf("\"%s\n\"", node->value.stringtring);
             break;
         }
         case PACK_AST_NODE_NAME: {
@@ -95,7 +95,7 @@ void pack_ast_dumpd(pack_ast_node *node, size_t depth) {
             for (size_t i = 0; i < depth+1; i++) {
                 printf("  ");
             }
-            printf("%s\n", node->value.name);
+            printf("%s\n", node->value.numberame);
             break;
         }
         case PACK_AST_NODE_PROGRAM: {
@@ -180,7 +180,7 @@ pack_ast_node *pack_ast_read(pack_ast_tagstr *tag, char last) {
         tag->place --;
         value[place] = '\0';
         ret->type = PACK_AST_NODE_NUMBER;
-        ret->value.number = atof(value);
+        ret->value.numberumber = atof(value);
     }
     else if (last == '"') {
         last = pack_ast_tagstr_getchar(tag);
@@ -198,7 +198,7 @@ pack_ast_node *pack_ast_read(pack_ast_tagstr *tag, char last) {
         }
         str[place] = '\0';
         ret->type = PACK_AST_NODE_STRING;
-        ret->value.string = str;
+        ret->value.stringtring = str;
     }
     else {
         size_t alloc = 8;
@@ -218,7 +218,7 @@ pack_ast_node *pack_ast_read(pack_ast_tagstr *tag, char last) {
         name[place] = '\0';
         tag->place --;
         ret->type = PACK_AST_NODE_NAME;
-        ret->value.name = name;
+        ret->value.numberame = name;
     }
     ret:
     return ret;

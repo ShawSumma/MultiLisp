@@ -3,64 +3,79 @@
 
 pack_value pack_value_num(pack_state *state, double n) {
     pack_value v;
-    v.type = VALUE_TYPE_NUMBER;
-    v.value.n = n;
+    v.type = PACK_VALUE_TYPE_NUMBER;
+    v.value.number = n;
+    return v;
+}
+
+pack_value pack_value_library(pack_state *state, void *l) {
+    pack_value v;
+    v.type = PACK_VALUE_TYPE_LIBRARY;
+    v.value.library = l;
+    return v;
+}
+
+pack_value pack_value_ffi_type(pack_state *state, ffi_type *t, pack_ffi_type_id id) {
+    pack_value v;
+    v.type = PACK_VALUE_TYPE_FFI_TYPE;
+    v.value.type.type = t;
+    v.value.type.type_id = id;
     return v;
 }
 
 pack_value pack_value_bool(pack_state *state, bool b) {
     pack_value v;
-    v.type = VALUE_TYPE_BOOLEAN;
-    v.value.b = b;
+    v.type = PACK_VALUE_TYPE_BOOLEAN;
+    v.value.boolean = b;
     return v;
 }
 
 pack_value pack_value_str(pack_state *state, char *s) {
     pack_value v;
-    v.type = VALUE_TYPE_STRING;
-    v.value.s = gc_malloc(sizeof(char) * (strlen(s) + 1));
+    v.type = PACK_VALUE_TYPE_STRING;
+    v.value.string = gc_malloc(sizeof(char) * (strlen(s) + 1));
     size_t i = 0;
     while (s[i]) {
-        v.value.s[i] = s[i];
+        v.value.string[i] = s[i];
         i++;
     }
-    v.value.s[i] = '\0';
+    v.value.string[i] = '\0';
     return v;
 }
 
-pack_value pack_value_cfunc(pack_state *state, pack_value (*cfn)(pack_state *, uint16_t, pack_local_value *, uint16_t, pack_value *)) {
+pack_value pack_value_cfunc(pack_state *state, pack_value (*cfn)(pack_state *, size_t, pack_local_value *, size_t, pack_value *)) {
     pack_value v;
-    v.type = VALUE_TYPE_FUNCTION;
-    v.value.f = gc_malloc(sizeof(pack_func));
-    v.value.f->type = FUNC_FROM_C;
-    v.value.f->capc = 0;
-    v.value.f->cap = NULL;
-    v.value.f->value.cfn = cfn;
+    v.type = PACK_VALUE_TYPE_FUNCTION;
+    v.value.func = gc_malloc(sizeof(pack_func));
+    v.value.func->type = FUNC_FROM_C;
+    v.value.func->capc = 0;
+    v.value.func->cap = NULL;
+    v.value.func->value.cfn = cfn;
     return v;
 }
 
-pack_value pack_value_packfunc(pack_state *state, uint16_t capc, pack_local_value *cap, uint32_t place) {
+pack_value pack_value_packfunc(pack_state *state, size_t capc, pack_local_value *cap, size_t place) {
     pack_value v;
-    v.type = VALUE_TYPE_FUNCTION;
-    v.value.f = gc_malloc(sizeof(pack_func));
-    v.value.f->type = FUNC_FROM_PACK;
-    v.value.f->capc = capc;
-    v.value.f->cap = cap;
-    v.value.f->value.place = place;
+    v.type = PACK_VALUE_TYPE_FUNCTION;
+    v.value.func = gc_malloc(sizeof(pack_func));
+    v.value.func->type = FUNC_FROM_PACK;
+    v.value.func->capc = capc;
+    v.value.func->cap = cap;
+    v.value.func->value.place = place;
     return v;
 }
 
 pack_value pack_value_func(pack_state *state, pack_func f) {
     pack_value v;
-    v.type = VALUE_TYPE_FUNCTION;
-    v.value.f = gc_malloc(sizeof(pack_func));
-    *v.value.f = f;
+    v.type = PACK_VALUE_TYPE_FUNCTION;
+    v.value.func = gc_malloc(sizeof(pack_func));
+    *v.value.func = f;
     return v;
 }
 
 pack_value pack_value_nil(pack_state *state) {
     pack_value v;
-    v.type = VALUE_TYPE_NIL;
+    v.type = PACK_VALUE_TYPE_NIL;
     return v;
 }
 
@@ -119,6 +134,18 @@ void runfile(pack_state *state, FILE *f) {
                 if (!strcmp("println", str)) {
                     vals[valindex] = pack_value_cfunc(state, pack_lib_println);
                 }
+                else if (!strcmp("print", str)) {
+                    vals[valindex] = pack_value_cfunc(state, pack_lib_print);
+                }
+                else if (!strcmp("newline", str)) {
+                    vals[valindex] = pack_value_cfunc(state, pack_lib_newline);
+                }
+                else if (!strcmp("vector", str)) {
+                    vals[valindex] = pack_value_cfunc(state, pack_lib_vector);
+                }
+                else if (!strcmp("index", str)) {
+                    vals[valindex] = pack_value_cfunc(state, pack_lib_index);
+                }
                 else if (!strcmp("<", str)) {
                     vals[valindex] = pack_value_cfunc(state, pack_lib_lt);
                 }
@@ -126,7 +153,7 @@ void runfile(pack_state *state, FILE *f) {
                     vals[valindex] = pack_value_cfunc(state, pack_lib_lte);
                 }
                 else if (!strcmp(">", str)) {
-                    vals[valindex] = pack_value_cfunc(state, pack_lib_lte);
+                    vals[valindex] = pack_value_cfunc(state, pack_lib_gt);
                 }
                 else if (!strcmp(">=", str)) {
                     vals[valindex] = pack_value_cfunc(state, pack_lib_gte);
@@ -155,6 +182,48 @@ void runfile(pack_state *state, FILE *f) {
                 else if (!strcmp("+", str)) {
                     vals[valindex] = pack_value_cfunc(state, pack_lib_add);
                 }
+                else if (!strcmp("ffi-int8", str)) {
+                    vals[valindex] = pack_value_ffi_type(state, &ffi_type_sint8, PACK_FFI_TYPE_INT8);
+                }
+                else if (!strcmp("ffi-int16", str)) {
+                    vals[valindex] = pack_value_ffi_type(state, &ffi_type_sint16, PACK_FFI_TYPE_INT16);
+                }
+                else if (!strcmp("ffi-int32", str)) {
+                    vals[valindex] = pack_value_ffi_type(state, &ffi_type_sint32, PACK_FFI_TYPE_INT32);
+                }
+                else if (!strcmp("ffi-int64", str)) {
+                    vals[valindex] = pack_value_ffi_type(state, &ffi_type_sint64, PACK_FFI_TYPE_INT64);
+                }
+                else if (!strcmp("ffi-uint8", str)) {
+                    vals[valindex] = pack_value_ffi_type(state, &ffi_type_uint8, PACK_FFI_TYPE_UINT8);
+                }
+                else if (!strcmp("ffi-uint16", str)) {
+                    vals[valindex] = pack_value_ffi_type(state, &ffi_type_uint16, PACK_FFI_TYPE_UINT16);
+                }
+                else if (!strcmp("ffi-uint32", str)) {
+                    vals[valindex] = pack_value_ffi_type(state, &ffi_type_uint32, PACK_FFI_TYPE_UINT32);
+                }
+                else if (!strcmp("ffi-uint64", str)) {
+                    vals[valindex] = pack_value_ffi_type(state, &ffi_type_uint64, PACK_FFI_TYPE_UINT64);
+                }
+                else if (!strcmp("ffi-float", str)) {
+                    vals[valindex] = pack_value_ffi_type(state, &ffi_type_float, PACK_FFI_TYPE_FLOAT);
+                }
+                else if (!strcmp("ffi-double", str)) {
+                    vals[valindex] = pack_value_ffi_type(state, &ffi_type_double, PACK_FFI_TYPE_DOUBLE);
+                }
+                else if (!strcmp("ffi-void", str)) {
+                    vals[valindex] = pack_value_ffi_type(state, &ffi_type_void, PACK_FFI_TYPE_VOID);
+                }
+                else if (!strcmp("ffi-pointer", str)) {
+                    vals[valindex] = pack_value_ffi_type(state, &ffi_type_pointer, PACK_FFI_TYPE_POINTER);
+                }
+                else if (!strcmp("ffi-library", str)) {
+                    vals[valindex] = pack_value_cfunc(state, pack_lib_ffi_library);
+                }
+                else if (!strcmp("ffi-index", str)) {
+                    vals[valindex] = pack_value_cfunc(state, pack_lib_ffi_index);
+                }
                 else {
                     printf("could not load name %s\n", str);
                     exit(1);
@@ -181,7 +250,7 @@ void runfile(pack_state *state, FILE *f) {
     pack_opcode *opcodes = gc_malloc(sizeof(pack_opcode) * (opcount));
     for (size_t i = 0; i < opcount; i++) {
         uint8_t code = (getc(f)-'0')*10 + getc(f)-'0';
-        uint32_t value = 0;
+        size_t value = 0;
         if (got == EOF) {
             break;
         }
@@ -302,12 +371,12 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap
             case OP_JUMPFALSE: {
                 state->stackindex --;
                 pack_value v = state->stack[state->stackindex];
-                if (v.type == VALUE_TYPE_BOOLEAN) {
-                    if (v.value.b == false) {
+                if (v.type == PACK_VALUE_TYPE_BOOLEAN) {
+                    if (v.value.boolean == false) {
                         i = op.value;
                     }
                 }
-                else if (v.type == VALUE_TYPE_NIL) {
+                else if (v.type == PACK_VALUE_TYPE_NIL) {
                     i = op.value;
                 }
                 break;
@@ -326,17 +395,183 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap
                 pack_value *args = state->stack+state->stackindex - op.value;
                 state->stackindex -= op.value;
                 pack_value vf = state->stack[state->stackindex-1];
-                if (vf.type != VALUE_TYPE_FUNCTION) {
+                if (vf.type != PACK_VALUE_TYPE_FUNCTION) {
                     printf("cannot call that\n");
                     exit(1);
                 }
-                pack_func f = *vf.value.f;
+                pack_func f = *vf.value.func;
                 if (f.type == FUNC_FROM_PACK) {
                     pack_value v = runpack_program(state, f.capc, f.cap, op.value, args, f.value.place+1);
                     state->stack[state->stackindex-1] = v;
                 }
-                else {
+                else if (f.type == FUNC_FROM_C) {
                     state->stack[state->stackindex-1] = f.value.cfn(state, f.capc, f.cap, op.value, args);
+                }
+                else {
+                    void **vpargs = gc_malloc(sizeof(void*) * op.value);
+                    for (size_t i = 0; i < op.value; i++) {
+                        // ffi_type *val = f.value.ffi.arg_types[i];
+                        pack_value arg = args[i];
+                        switch (arg.type) {
+                            case PACK_VALUE_TYPE_NIL: {
+                                vpargs[i] = NULL;
+                                break;
+                            }
+                            case PACK_VALUE_TYPE_BOOLEAN: {
+                                vpargs[i] = &arg.value.boolean;
+                                break;
+                            }
+                            case PACK_VALUE_TYPE_NUMBER: {
+                                double num = arg.value.number;
+                                switch (f.value.ffi.arg_types[i].type_id) {
+                                    case PACK_FFI_TYPE_INT8:
+                                        vpargs[i] = gc_malloc(sizeof(int8_t));
+                                        *(int8_t *)vpargs[i] = num;
+                                        break;
+                                    case PACK_FFI_TYPE_INT16: {
+                                        vpargs[i] = gc_malloc(sizeof(int16_t));
+                                        *(int8_t *)vpargs[i] = num;
+                                        break;
+                                    }
+                                    case PACK_FFI_TYPE_INT32: {
+                                        vpargs[i] = gc_malloc(sizeof(int32_t));
+                                        *(int8_t *)vpargs[i] = num;
+                                        break;
+                                    }
+                                    case PACK_FFI_TYPE_INT64: {
+                                        vpargs[i] = gc_malloc(sizeof(int64_t));
+                                        *(int8_t *)vpargs[i] = num;
+                                        break;
+                                    }
+                                    case PACK_FFI_TYPE_UINT8: {
+                                        vpargs[i] = gc_malloc(sizeof(uint8_t));
+                                        *(uint8_t *)vpargs[i] = num;
+                                        break;
+                                    }
+                                    case PACK_FFI_TYPE_UINT16: {
+                                        vpargs[i] = gc_malloc(sizeof(uint16_t));
+                                        *(uint16_t *)vpargs[i] = num;
+                                        break;
+                                    }
+                                    case PACK_FFI_TYPE_UINT32: {
+                                        vpargs[i] = gc_malloc(sizeof(uint32_t));
+                                        *(uint32_t *)vpargs[i] = num;
+                                        break;
+                                    }
+                                    case PACK_FFI_TYPE_UINT64: {
+                                        vpargs[i] = gc_malloc(sizeof(uint64_t));
+                                        *(uint64_t *)vpargs[i] = num;
+                                        break;
+                                    }
+                                    case PACK_FFI_TYPE_FLOAT: {
+                                        vpargs[i] = gc_malloc(sizeof(float));
+                                        *(float *)vpargs[i] = num;
+                                        break;
+                                    }
+                                    case PACK_FFI_TYPE_DOUBLE: {
+                                        vpargs[i] = gc_malloc(sizeof(double));
+                                        *(double *)vpargs[i] = num;
+                                        break;
+                                    }
+                                    default: {
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                                // vpargs[i] = &arg.value.number;
+                            case PACK_VALUE_TYPE_STRING: {
+                                vpargs[i] = &arg.value.string;
+                                break;
+                            }
+                            // case PACK_VALUE_TYPE_VECTOR:
+                            //     vpargs[i] = &arg.value.vector->values;
+                            //     break;
+                            default: {
+                                printf("non ffi type in ffi call");
+                                exit(1);
+                            }
+                        }
+                        // if (val->type == ffi_type_double.type) {
+                        //     // double value = args[i].value.number;
+                        //     arg = &args[i].value.number;
+                        // }
+                        // else if (val->type == ffi_type_)
+                        // else {
+                        //     printf("bad ffi call\n");
+                        //     exit(1);
+                        // }
+                        // vpargs[i] = arg;
+                    }
+                    void *out;
+                    // out = op.value;
+                    ffi_call(&f.value.ffi.cif, FFI_FN(f.value.ffi.func), &out, vpargs);
+                    pack_value back;
+                    switch (f.value.ffi.ret_type.type_id) {
+                        case PACK_FFI_TYPE_INT8:
+                            back.type = PACK_VALUE_TYPE_NUMBER;
+                            back.value.number = (int8_t) out;
+                            break;
+                        case PACK_FFI_TYPE_INT16: {
+                            back.type = PACK_VALUE_TYPE_NUMBER;
+                            back.value.number = (int16_t) out;
+                            break;
+                        }
+                        case PACK_FFI_TYPE_INT32: {
+                            back.type = PACK_VALUE_TYPE_NUMBER;
+                            back.value.number = (int32_t) out;
+                            break;
+                        }
+                        case PACK_FFI_TYPE_INT64: {
+                            back.type = PACK_VALUE_TYPE_NUMBER;
+                            back.value.number = (int64_t) out;
+                            break;
+                        }
+                        case PACK_FFI_TYPE_UINT8: {
+                            back.type = PACK_VALUE_TYPE_NUMBER;
+                            back.value.number = (uint8_t) out;
+                            break;
+                        }
+                        case PACK_FFI_TYPE_UINT16: {
+                            back.type = PACK_VALUE_TYPE_NUMBER;
+                            back.value.number = (uint16_t) out;
+                            break;
+                        }
+                        case PACK_FFI_TYPE_UINT32: {
+                            back.type = PACK_VALUE_TYPE_NUMBER;
+                            back.value.number = (uint32_t) out;
+                            break;
+                        }
+                        case PACK_FFI_TYPE_UINT64: {
+                            back.type = PACK_VALUE_TYPE_NUMBER;
+                            back.value.number = (uint64_t) out;
+                            break;
+                        }
+                        case PACK_FFI_TYPE_FLOAT: {
+                            back.type = PACK_VALUE_TYPE_NUMBER;
+                            back.value.number = (float) (uint32_t) out;
+                            break;
+                        }
+                        case PACK_FFI_TYPE_DOUBLE: {
+                            back.type = PACK_VALUE_TYPE_NUMBER;
+                            back.value.number = (double) (uint64_t) out;
+                            break;
+                        }
+                        case PACK_FFI_TYPE_VOID: {
+                            back.type = PACK_VALUE_TYPE_NIL;
+                            break;
+                        }
+                        case PACK_FFI_TYPE_CHAR_POINTER: {
+                            back.type = PACK_VALUE_TYPE_STRING;
+                            back.value.string = out;
+                            break;
+                        }
+                        case PACK_FFI_TYPE_POINTER: {
+
+                        }
+                    }
+                    state->stack[state->stackindex-1] = back;
+                    // exit(1);
                 }
                 break;
             }

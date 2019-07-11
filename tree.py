@@ -241,6 +241,7 @@ class State:
         parser = lark.Lark("""
             start : expr*
             expr : "(" (NAME | NUM | STR | expr)* ")"
+                | "[" (NAME | NUM | STR | expr)* "]"
             NAME : /[^\s0-9\(\)"]+[^\s\(\)"]*/
             NUM : /\-?[0-9]+(\.[0-9]*)?/
             STR : /"(?:[^"\\\\]|\\\\.)*"/

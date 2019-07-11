@@ -1,8 +1,9 @@
-(define (add a)
-    (lambda (b) (+ a b)))
-(define (add2 a)
-    (lambda (b) (+ a b)))
-(define (fib n)
-    (fib ((if true * +) n 1)))
-
-(println ((add2 1) 4))
+(define libc
+    (ffi-library "libc.so.6"))
+(define fiblib
+    (ffi-library "code/fib.so"))
+(define fib
+    (ffi-index fiblib "fib"
+        ffi-uint64
+        ffi-uint32))
+(println (fib 10))
