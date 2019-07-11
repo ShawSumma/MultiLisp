@@ -1,7 +1,16 @@
 
 #include "interp.h"
 
+void *pack_gmprealloc(void *o, size_t i0, size_t s) {
+    return gc_realloc(o, s);
+}
+
+void pack_gmpfree(void *v, size_t i0) {
+    gc_free(v);
+}
+
 int main(int argc, char **argv) {
+    mp_set_memory_functions(gc_malloc, pack_gmprealloc, pack_gmpfree);
     if (argc != 2) {
         printf("one argument must be provided\n");
         exit(1);

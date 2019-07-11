@@ -36,12 +36,15 @@ void pack_clib_print(pack_value argv) {
             break;
         }
         case PACK_VALUE_TYPE_NUMBER: {
-            double v = argv.value.number;
-            if (fmod(v, 1) == 0) {
-                printf("%ld", (int64_t) v);
-            }
-            else {
-                printf("%lf", v);
+            switch (argv.value.number.type) {
+                case PACK_NUMBER_TYPE_FLOATING: {
+                    gmp_printf("%Ff", argv.value.number.value.f);
+                    break;
+                }
+                case PACK_NUMBER_TYPE_INTEGER: {
+                    gmp_printf("%Zd", argv.value.number.value.i);
+                    break;
+                }
             }
             break;
         }
@@ -57,10 +60,12 @@ void pack_clib_print(pack_value argv) {
 }
 
 bool pack_clib_lt(size_t argc, pack_value *argv) {
-    double d = argv[0].value.number;
+    pack_number a = argv[0].value.number;
     for (size_t i = 1; i < argc; i++) {
-        if (d < argv[i].value.number) {
-            d = argv[i].value.number;
+        pack_number b = argv[i].value.number;
+        int cmpv = pack_number_cmp(a, b);
+        if (cmpv < 0) {
+            a = b;
         }
         else {
             return false;
@@ -70,10 +75,12 @@ bool pack_clib_lt(size_t argc, pack_value *argv) {
 }
 
 bool pack_clib_gt(size_t argc, pack_value *argv) {
-    double d = argv[0].value.number;
+    pack_number a = argv[0].value.number;
     for (size_t i = 1; i < argc; i++) {
-        if (d > argv[i].value.number) {
-            d = argv[i].value.number;
+        pack_number b = argv[i].value.number;
+        int cmpv = pack_number_cmp(a, b);
+        if (cmpv > 0) {
+            a = b;
         }
         else {
             return false;
@@ -83,10 +90,12 @@ bool pack_clib_gt(size_t argc, pack_value *argv) {
 }
 
 bool pack_clib_lte(size_t argc, pack_value *argv) {
-    double d = argv[0].value.number;
+    pack_number a = argv[0].value.number;
     for (size_t i = 1; i < argc; i++) {
-        if (d <= argv[i].value.number) {
-            d = argv[i].value.number;
+        pack_number b = argv[i].value.number;
+        int cmpv = pack_number_cmp(a, b);
+        if (cmpv <= 0) {
+            a = b;
         }
         else {
             return false;
@@ -96,10 +105,12 @@ bool pack_clib_lte(size_t argc, pack_value *argv) {
 }
 
 bool pack_clib_gte(size_t argc, pack_value *argv) {
-    double d = argv[0].value.number;
+    pack_number a = argv[0].value.number;
     for (size_t i = 1; i < argc; i++) {
-        if (d >= argv[i].value.number) {
-            d = argv[i].value.number;
+        pack_number b = argv[i].value.number;
+        int cmpv = pack_number_cmp(a, b);
+        if (cmpv >= 0) {
+            a = b;
         }
         else {
             return false;
@@ -153,7 +164,7 @@ bool pack_clib_neq(size_t argc, pack_value *argv) {
                         break;
                     }
                     case PACK_VALUE_TYPE_NUMBER: {
-                        if (iv.value.number == jv.value.number) {
+                        if (pack_number_cmp(iv.value.number, jv.value.number) == 0) {
                             return false;
                         }
                         break;
@@ -218,7 +229,7 @@ bool pack_clib_eq(size_t argc, pack_value *argv) {
                 break;
             }
             case PACK_VALUE_TYPE_NUMBER: {
-                if (cur.value.number != cmp.value.number) {
+                if (pack_number_cmp(cur.value.number, cmp.value.number) != 0) {
                     return false;
                 }
                 break;

@@ -240,10 +240,11 @@ class State:
     def parse(self, code):
         parser = lark.Lark("""
             start : expr*
-            expr : "(" (NAME | NUM | STR | expr)* ")"
-                | "[" (NAME | NUM | STR | expr)* "]"
-            NAME : /[^\s0-9\(\)"]+[^\s\(\)"]*/
-            NUM : /\-?[0-9]+(\.[0-9]*)?/
+            expr : "(" (NAME | NUM | STR | FLOAT | expr)* ")"
+                | "[" (NAME | NUM | STR | FLOAT | expr)* "]"
+            NAME : /[^\s0-9\(\)\\."]+[^\s\(\)\\."]*/
+            FLOAT : /\-?[0-9]+\.[0-9]+/
+            NUM : /\-?[0-9]+/
             STR : /"(?:[^"\\\\]|\\\\.)*"/
             %ignore /\s+/
             %ignore /;.*/
@@ -267,6 +268,8 @@ class State:
             if ast.type == 'NAME':
                 return Load(str(ast), place=place)
             if ast.type == 'NUM':
+                return Const(int(str(ast)), place=place)
+            if ast.type == 'FLOAT':
                 return Const(float(str(ast)), place=place)
             if ast.type == 'STR':
                 return Const(str(ast)[1:-1], place=place)

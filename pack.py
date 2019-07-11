@@ -16,7 +16,7 @@ def packs(walk):
                 data.append(b'e')
             if isinstance(v, float):
                 vs = str(v).encode('ascii')
-                data.append(b'f')
+                data.append(b'd')
                 data.append(vs)
                 data.append(b'e')
             if v is None:

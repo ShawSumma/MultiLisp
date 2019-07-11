@@ -97,7 +97,7 @@ pack_value pack_lib_index(pack_state *state,  size_t capc, pack_local_value *cap
         pack_error_argindex(state, "index", 1);
         exit(1);
     }
-    size_t ind = pack_vector_index_convert(state, argv[1].value.vector, argv[1].value.number);
+    size_t ind = pack_vector_index_convert(state, argv[1].value.vector, pack_number_to_int64(argv[1].value.number));
     return pack_vector_get(state, argv[0].value.vector, ind);
 }
 
@@ -126,17 +126,27 @@ pack_value pack_lib_print(pack_state *state,  size_t capc, pack_local_value *cap
 }
 
 pack_value pack_lib_add(pack_state *state,  size_t capc, pack_local_value *cap, size_t argc, pack_value *argv) {
+    bool hasfloat = false;
     for (size_t i = 0; i < argc; i++) {
         if (argv[i].type != PACK_VALUE_TYPE_NUMBER) {
             pack_error_argindex(state, "+", i);
             exit(1);
         }
+        if (argv[i].value.number.type == PACK_NUMBER_TYPE_FLOATING) {
+            hasfloat = true;
+        }
     }
-    double d = 0;
+    pack_number ret;
+    if (hasfloat) {
+        ret = pack_number_new_double(0);
+    }
+    else {
+        ret = pack_number_new_int64(0);
+    }
     for (size_t i = 0; i < argc; i++) {
-        d += argv[i].value.number;
+        ret = pack_number_add(ret, argv[i].value.number);
     }
-    return pack_value_num(state, d);
+    return pack_value_num(state, ret);
 }
 
 pack_value pack_lib_sub(pack_state *state,  size_t capc, pack_local_value *cap, size_t argc, pack_value *argv) {
@@ -144,34 +154,48 @@ pack_value pack_lib_sub(pack_state *state,  size_t capc, pack_local_value *cap, 
         fprintf(stderr, "- takes 1 or more arguments\n");
         exit(1);
     }
+    bool hasfloat = false;
     for (size_t i = 0; i < argc; i++) {
         if (argv[i].type != PACK_VALUE_TYPE_NUMBER) {
             pack_error_argindex(state, "-", i);
             exit(1);
         }
+        if (argv[i].value.number.type == PACK_NUMBER_TYPE_FLOATING) {
+            hasfloat = true;
+        }
     }
     if (argc == 1) {
-        return pack_value_num(state, -argv[0].value.number);
+        return pack_value_num(state, pack_number_sub(pack_number_new_int64(0), argv[0].value.number));
     }
-    double d = argv[0].value.number;
+    pack_number ret = argv[0].value.number;
     for (size_t i = 1; i < argc; i++) {
-        d -= argv[i].value.number;
+        ret = pack_number_sub(ret, argv[i].value.number);
     }
-    return pack_value_num(state, d);
+    return pack_value_num(state, ret);
 }
 
 pack_value pack_lib_mul(pack_state *state,  size_t capc, pack_local_value *cap, size_t argc, pack_value *argv) {
+    bool hasfloat = false;
     for (size_t i = 0; i < argc; i++) {
         if (argv[i].type != PACK_VALUE_TYPE_NUMBER) {
             pack_error_argindex(state, "*", i);
             exit(1);
         }
+        if (argv[i].value.number.type == PACK_NUMBER_TYPE_FLOATING) {
+            hasfloat = true;
+        }
     }
-    double d = 1;
+    pack_number ret;
+    if (hasfloat) {
+        ret = pack_number_new_double(1);
+    }
+    else {
+        ret = pack_number_new_int64(1);
+    }
     for (size_t i = 0; i < argc; i++) {
-        d *= argv[i].value.number;
+        ret = pack_number_mul(ret, argv[i].value.number);
     }
-    return pack_value_num(state, d);
+    return pack_value_num(state, ret);
 }
 
 pack_value pack_lib_div(pack_state *state,  size_t capc, pack_local_value *cap, size_t argc, pack_value *argv) {
@@ -179,20 +203,24 @@ pack_value pack_lib_div(pack_state *state,  size_t capc, pack_local_value *cap, 
         fprintf(stderr, "/ takes 1 or more arguments\n");
         exit(1);
     }
+    bool hasfloat = false;
     for (size_t i = 0; i < argc; i++) {
         if (argv[i].type != PACK_VALUE_TYPE_NUMBER) {
-            pack_error_argindex(state, "/", i);
+            pack_error_argindex(state, "-", i);
             exit(1);
+        }
+        if (argv[i].value.number.type == PACK_NUMBER_TYPE_FLOATING) {
+            hasfloat = true;
         }
     }
     if (argc == 1) {
-        return pack_value_num(state, 1/argv[0].value.number);
+        return pack_value_num(state, pack_number_div(pack_number_new_int64(1), argv[0].value.number));
     }
-    double d = argv[0].value.number;
+    pack_number ret = argv[0].value.number;
     for (size_t i = 1; i < argc; i++) {
-        d /= argv[i].value.number;
+        ret = pack_number_div(ret, argv[i].value.number);
     }
-    return pack_value_num(state, d);
+    return pack_value_num(state, ret);
 }
 
 pack_value pack_lib_lt(pack_state *state,  size_t capc, pack_local_value *cap, size_t argc, pack_value *argv) {

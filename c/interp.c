@@ -1,7 +1,7 @@
 #include "interp.h"
 #include <unistd.h>
 
-pack_value pack_value_num(pack_state *state, double n) {
+pack_value pack_value_num(pack_state *state, pack_number n) {
     pack_value v;
     v.type = PACK_VALUE_TYPE_NUMBER;
     v.value.number = n;
@@ -93,28 +93,42 @@ void runfile(pack_state *state, FILE *f) {
     size_t newvalcount = 0;
     while (got != ':') {
         if (got == 'i') {
-            int64_t num = 0;
+            size_t alloc = 16;
+            char *s = gc_malloc(sizeof(char) * alloc);
+            size_t count = 0;
             got = getc(f);
             while (got != 'e') {
-                num *= 10;
-                num += got-'0';
+                if (count + 4 > alloc) {
+                    alloc *= 2;
+                    s = gc_realloc(s, sizeof(char) * alloc);
+                }
+                s[count] = got;
                 got = getc(f);
+                count ++;
             }
-            got = getc(f);
-            vals[valindex] = pack_value_num(state, num);
+            s[count] = '\0';
+            vals[valindex] = pack_value_num(state, pack_number_new_bigint(s));
             valindex ++;
+            got = getc(f);
         }
         else if (got == 'd') {
-            double num = 0;
+            size_t alloc = 16;
+            char *s = gc_malloc(sizeof(char) * alloc);
+            size_t count = 0;
             got = getc(f);
             while (got != 'e') {
-                num *= 10;
-                num += got-'0';
+                if (count + 4 > alloc) {
+                    alloc *= 2;
+                    s = gc_realloc(s, sizeof(char) * alloc);
+                }
+                s[count] = got;
                 got = getc(f);
+                count ++;
             }
-            got = getc(f);
-            vals[valindex] = pack_value_num(state, num);
+            s[count] = '\0';
+            vals[valindex] = pack_value_num(state, pack_number_new_bigfloat(s));
             valindex ++;
+            got = getc(f);
         }
         else if (got == 's') {
             size_t num = 0;
@@ -326,6 +340,7 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap
     }
     pack_value ret;
     while (i < opcount) {
+        // printf("op(%zu)\n", i);
         pack_opcode op = pack_opcodes[i];
         switch (op.type) {
             case OP_PUSH: {
@@ -457,55 +472,55 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap
                                 break;
                             }
                             case PACK_VALUE_TYPE_NUMBER: {
-                                double num = arg.value.number;
+                                pack_number num = arg.value.number;
                                 switch (f.value.ffi->arg_types[i].type_id) {
                                     case PACK_FFI_TYPE_INT8:
                                         vpargs[i] = gc_malloc(sizeof(int8_t));
-                                        *(int8_t *)vpargs[i] = num;
+                                        *(int8_t *)vpargs[i] = pack_number_to_int64(num);
                                         break;
                                     case PACK_FFI_TYPE_INT16: {
                                         vpargs[i] = gc_malloc(sizeof(int16_t));
-                                        *(int16_t *)vpargs[i] = num;
+                                        *(int16_t *)vpargs[i] = pack_number_to_int64(num);
                                         break;
                                     }
                                     case PACK_FFI_TYPE_INT32: {
                                         vpargs[i] = gc_malloc(sizeof(int32_t));
-                                        *(int32_t *)vpargs[i] = num;
+                                        *(int32_t *)vpargs[i] = pack_number_to_int64(num);
                                         break;
                                     }
                                     case PACK_FFI_TYPE_INT64: {
                                         vpargs[i] = gc_malloc(sizeof(int64_t));
-                                        *(int64_t *)vpargs[i] = num;
+                                        *(int64_t *)vpargs[i] = pack_number_to_int64(num);
                                         break;
                                     }
                                     case PACK_FFI_TYPE_UINT8: {
                                         vpargs[i] = gc_malloc(sizeof(uint8_t));
-                                        *(uint8_t *)vpargs[i] = num;
+                                        *(uint8_t *)vpargs[i] = pack_number_to_uint64(num);
                                         break;
                                     }
                                     case PACK_FFI_TYPE_UINT16: {
                                         vpargs[i] = gc_malloc(sizeof(uint16_t));
-                                        *(uint16_t *)vpargs[i] = num;
+                                        *(uint16_t *)vpargs[i] = pack_number_to_uint64(num);
                                         break;
                                     }
                                     case PACK_FFI_TYPE_UINT32: {
                                         vpargs[i] = gc_malloc(sizeof(uint32_t));
-                                        *(uint32_t *)vpargs[i] = num;
+                                        *(uint32_t *)vpargs[i] = pack_number_to_uint64(num);
                                         break;
                                     }
                                     case PACK_FFI_TYPE_UINT64: {
                                         vpargs[i] = gc_malloc(sizeof(uint64_t));
-                                        *(uint64_t *)vpargs[i] = num;
+                                        *(uint64_t *)vpargs[i] = pack_number_to_uint64(num);
                                         break;
                                     }
                                     case PACK_FFI_TYPE_FLOAT: {
                                         vpargs[i] = gc_malloc(sizeof(float));
-                                        *(float *)vpargs[i] = num;
+                                        *(float *)vpargs[i] = pack_number_to_double(num);
                                         break;
                                     }
                                     case PACK_FFI_TYPE_DOUBLE: {
                                         vpargs[i] = gc_malloc(sizeof(double));
-                                        *(double *)vpargs[i] = num;
+                                        *(double *)vpargs[i] = pack_number_to_double(num);
                                         break;
                                     }
                                     default: {
@@ -530,51 +545,51 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap
                     switch (f.value.ffi->ret_type.type_id) {
                         case PACK_FFI_TYPE_INT8:
                             back.type = PACK_VALUE_TYPE_NUMBER;
-                            back.value.number = (int8_t) out;
+                            back.value.number = pack_number_new_int64((int8_t) out);
                             break;
                         case PACK_FFI_TYPE_INT16: {
                             back.type = PACK_VALUE_TYPE_NUMBER;
-                            back.value.number = (int16_t) out;
+                            back.value.number = pack_number_new_int64((int16_t) out);
                             break;
                         }
                         case PACK_FFI_TYPE_INT32: {
                             back.type = PACK_VALUE_TYPE_NUMBER;
-                            back.value.number = (int32_t) out;
+                            back.value.number = pack_number_new_int64((int32_t) out);
                             break;
                         }
                         case PACK_FFI_TYPE_INT64: {
                             back.type = PACK_VALUE_TYPE_NUMBER;
-                            back.value.number = (int64_t) out;
+                            back.value.number = pack_number_new_int64((int64_t) out);
                             break;
                         }
                         case PACK_FFI_TYPE_UINT8: {
                             back.type = PACK_VALUE_TYPE_NUMBER;
-                            back.value.number = (uint8_t) out;
+                            back.value.number = pack_number_new_uint64((uint8_t) out);
                             break;
                         }
                         case PACK_FFI_TYPE_UINT16: {
                             back.type = PACK_VALUE_TYPE_NUMBER;
-                            back.value.number = (uint16_t) out;
+                            back.value.number = pack_number_new_uint64((uint16_t) out);
                             break;
                         }
                         case PACK_FFI_TYPE_UINT32: {
                             back.type = PACK_VALUE_TYPE_NUMBER;
-                            back.value.number = (uint32_t) out;
+                            back.value.number = pack_number_new_uint64((uint32_t) out);
                             break;
                         }
                         case PACK_FFI_TYPE_UINT64: {
                             back.type = PACK_VALUE_TYPE_NUMBER;
-                            back.value.number = (uint64_t) out;
+                            back.value.number = pack_number_new_uint64((uint64_t) out);
                             break;
                         }
                         case PACK_FFI_TYPE_FLOAT: {
                             back.type = PACK_VALUE_TYPE_NUMBER;
-                            back.value.number = *(float*)&out;
+                            back.value.number = pack_number_new_double(*(float*)&out);
                             break;
                         }
                         case PACK_FFI_TYPE_DOUBLE: {
                             back.type = PACK_VALUE_TYPE_NUMBER;
-                            back.value.number = *(double*)&out;
+                            back.value.number = pack_number_new_double(*(double*)&out);
                             break;
                         }
                         case PACK_FFI_TYPE_VOID: {

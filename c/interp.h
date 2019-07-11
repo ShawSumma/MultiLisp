@@ -5,9 +5,11 @@
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
-#include <gc.h>
 #include <dlfcn.h>
 #include <ffi.h>
+// #include <mpfr.h>
+#include <gmp.h>
+#include <gc.h>
 
 #define gc_malloc GC_malloc
 #define gc_realloc GC_realloc
@@ -20,6 +22,9 @@ struct pack_func;
 typedef struct pack_func pack_func;
 struct pack_value;
 typedef struct pack_value pack_value;
+struct pack_number;
+typedef struct pack_number pack_number;
+// typedef double pack_number;
 struct pack_opcode;
 typedef struct pack_opcode pack_opcode;
 struct pack_program;
@@ -80,9 +85,30 @@ typedef enum {
 } pack_ffi_type_id;
 
 typedef enum {
+    PACK_NUMBER_TYPE_FLOATING,
+    PACK_NUMBER_TYPE_INTEGER,
+    // PACK_NUMBER_TYPE_FLOATING,
+    // PACK_NUMBER_TYPE_FRACTION,
+    // PACK_NUMBER_TYPE_LONG_INTEGER,
+    // PACK_NUMBER_TYPE_SHORT_INTEGER,
+} pack_number_type;
+
+typedef enum {
     PACK_UNMARKED = 0,
     PACK_MARKED = 1,
 } pack_mark;
+
+struct pack_number {
+    pack_number_type type;
+    union {
+        // double flo64;
+        // int64_t num64;
+        // int8_t num8;
+        mpz_t i;
+        mpf_t f;
+        // mpq_t frac;
+    } value;
+};
 
 struct pack_ffi_type {
     ffi_type *type;
@@ -118,7 +144,7 @@ struct pack_func {
 
 struct pack_value {
     union {
-        double number;
+        pack_number number;
         char *string;
         bool boolean;
         pack_func *func;
@@ -175,7 +201,7 @@ struct pack_local_value {
     bool ismut;
 };
 
-pack_value pack_value_num(pack_state *, double);
+pack_value pack_value_num(pack_state *, pack_number);
 pack_value pack_value_library(pack_state *, void *);
 pack_value pack_value_ffi_type(pack_state *, ffi_type *, pack_ffi_type_id);
 pack_value pack_value_bool(pack_state *, bool);
@@ -191,6 +217,7 @@ pack_value pack_value_nil(pack_state *);
 void runfile(pack_state *, FILE *);
 pack_value runpack_program(pack_state *, size_t, pack_local_value *, size_t, pack_value *, size_t);
 
+#include "numbers.h"
 #include "state.h"
 #include "error.h"
 #include "vector.h"

@@ -1,0 +1,10 @@
+(define (fac n)
+    (define got
+        (if (< n 1)
+            1
+            (* 
+                n
+                (fac (- n 1)))))
+    got)
+
+(println (fac 5))

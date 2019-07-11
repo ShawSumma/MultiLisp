@@ -1,10 +1,1 @@
-(define libm
-    (ffi-library "libm.so.6"))
-
-(define fmod
-    (ffi-index libm "fmod"
-        ffi-double
-        ffi-double
-        ffi-double))
-
-(println (fmod 20 6))
+(println (< 2.4 1))
