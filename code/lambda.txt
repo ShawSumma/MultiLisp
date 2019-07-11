@@ -1,9 +1,0 @@
-(define (rec1 n)
-	(if (= n 0)
-        (println "done")
-        (rec2 (- n 1))))
-
-(define (rec2 n)
-    (rec1 n))
-
-(rec1 20000000)

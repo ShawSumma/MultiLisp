@@ -1,9 +1,10 @@
-(define libc
-    (ffi-library "libc.so.6"))
-(define fiblib
-    (ffi-library "code/fib.so"))
-(define fib
-    (ffi-index fiblib "fib"
-        ffi-uint64
-        ffi-uint32))
-(println (fib 10))
+(define libm
+    (ffi-library "libm.so.6"))
+
+(define fmod
+    (ffi-index libm "fmod"
+        ffi-double
+        ffi-double
+        ffi-double))
+
+(println (fmod 20 6))

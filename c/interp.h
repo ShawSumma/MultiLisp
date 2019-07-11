@@ -90,24 +90,30 @@ struct pack_ffi_type {
 };
 
 struct pack_func {
-    pack_local_value *cap;
     union {
-        size_t place;
-        pack_value (*cfn)(pack_state *, size_t, pack_local_value *, size_t, pack_value *);
+        struct {
+            pack_local_value *cap;
+            size_t place;
+            size_t capc;
+        } place;
+        struct {
+            pack_local_value *cap;
+            pack_value (*cfn)(pack_state *, size_t, pack_local_value *, size_t, pack_value *);
+            size_t capc;
+        } cfn;
         struct {
             void *func;
             ffi_cif cif;
             pack_ffi_type ret_type;
             pack_ffi_type *arg_types;
             size_t argc;
-        } ffi;
+        } *ffi;
     } value;
     enum {
         FUNC_FROM_C,
         FUNC_FROM_FFI,
         FUNC_FROM_PACK,
     } type;
-    size_t capc;
 };
 
 struct pack_value {
@@ -186,6 +192,7 @@ void runfile(pack_state *, FILE *);
 pack_value runpack_program(pack_state *, size_t, pack_local_value *, size_t, pack_value *, size_t);
 
 #include "state.h"
+#include "error.h"
 #include "vector.h"
 #include "clib.h"
 #include "lib.h"

@@ -246,6 +246,7 @@ class State:
             NUM : /\-?[0-9]+(\.[0-9]*)?/
             STR : /"(?:[^"\\\\]|\\\\.)*"/
             %ignore /\s+/
+            %ignore /;.*/
         """)
         ast = parser.parse(code)
         return ast

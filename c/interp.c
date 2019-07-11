@@ -48,9 +48,9 @@ pack_value pack_value_cfunc(pack_state *state, pack_value (*cfn)(pack_state *, s
     v.type = PACK_VALUE_TYPE_FUNCTION;
     v.value.func = gc_malloc(sizeof(pack_func));
     v.value.func->type = FUNC_FROM_C;
-    v.value.func->capc = 0;
-    v.value.func->cap = NULL;
-    v.value.func->value.cfn = cfn;
+    v.value.func->value.cfn.capc = 0;
+    v.value.func->value.cfn.cap = NULL;
+    v.value.func->value.cfn.cfn = cfn;
     return v;
 }
 
@@ -59,9 +59,9 @@ pack_value pack_value_packfunc(pack_state *state, size_t capc, pack_local_value 
     v.type = PACK_VALUE_TYPE_FUNCTION;
     v.value.func = gc_malloc(sizeof(pack_func));
     v.value.func->type = FUNC_FROM_PACK;
-    v.value.func->capc = capc;
-    v.value.func->cap = cap;
-    v.value.func->value.place = place;
+    v.value.func->value.place.capc = capc;
+    v.value.func->value.place.cap = cap;
+    v.value.func->value.place.place = place;
     return v;
 }
 
@@ -126,7 +126,40 @@ void runfile(pack_state *state, FILE *f) {
             }
             char *str = gc_malloc(sizeof(char) * (num+1));
             for (size_t i = 0; i < num; i++) {
-                str[i] = getc(f);
+                got = getc(f);
+                if (got == '\\') {
+                    got = getc(f);
+                    switch (got) {
+                        case 'n': {
+                            str[i] = '\n';
+                            break;
+                        }
+                        case 't': {
+                            str[i] = '\t';
+                            break;
+                        }
+                        case 'r': {
+                            str[i] = '\r';
+                            break;
+                        }
+                        case 's': {
+                            str[i] = ' ';
+                            break;
+                        }
+                        case 'e': {
+                            str[i] = '\e';
+                            break;
+                        }
+                        default: {
+                            str[i] = got;
+                            break;
+                        }
+                    }
+                    num --;
+                }
+                else {
+                    str[i] = got;
+                }
             } 
             got = getc(f);
             str[num] = '\0';
@@ -217,6 +250,9 @@ void runfile(pack_state *state, FILE *f) {
                 }
                 else if (!strcmp("ffi-pointer", str)) {
                     vals[valindex] = pack_value_ffi_type(state, &ffi_type_pointer, PACK_FFI_TYPE_POINTER);
+                }
+                else if (!strcmp("ffi-string", str)) {
+                    vals[valindex] = pack_value_ffi_type(state, &ffi_type_pointer, PACK_FFI_TYPE_CHAR_POINTER);
                 }
                 else if (!strcmp("ffi-library", str)) {
                     vals[valindex] = pack_value_cfunc(state, pack_lib_ffi_library);
@@ -401,16 +437,15 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap
                 }
                 pack_func f = *vf.value.func;
                 if (f.type == FUNC_FROM_PACK) {
-                    pack_value v = runpack_program(state, f.capc, f.cap, op.value, args, f.value.place+1);
+                    pack_value v = runpack_program(state, f.value.place.capc, f.value.place.cap, op.value, args, f.value.place.place+1);
                     state->stack[state->stackindex-1] = v;
                 }
                 else if (f.type == FUNC_FROM_C) {
-                    state->stack[state->stackindex-1] = f.value.cfn(state, f.capc, f.cap, op.value, args);
+                    state->stack[state->stackindex-1] = f.value.cfn.cfn(state, f.value.cfn.capc, f.value.cfn.cap, op.value, args);
                 }
                 else {
                     void **vpargs = gc_malloc(sizeof(void*) * op.value);
                     for (size_t i = 0; i < op.value; i++) {
-                        // ffi_type *val = f.value.ffi.arg_types[i];
                         pack_value arg = args[i];
                         switch (arg.type) {
                             case PACK_VALUE_TYPE_NIL: {
@@ -423,24 +458,24 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap
                             }
                             case PACK_VALUE_TYPE_NUMBER: {
                                 double num = arg.value.number;
-                                switch (f.value.ffi.arg_types[i].type_id) {
+                                switch (f.value.ffi->arg_types[i].type_id) {
                                     case PACK_FFI_TYPE_INT8:
                                         vpargs[i] = gc_malloc(sizeof(int8_t));
                                         *(int8_t *)vpargs[i] = num;
                                         break;
                                     case PACK_FFI_TYPE_INT16: {
                                         vpargs[i] = gc_malloc(sizeof(int16_t));
-                                        *(int8_t *)vpargs[i] = num;
+                                        *(int16_t *)vpargs[i] = num;
                                         break;
                                     }
                                     case PACK_FFI_TYPE_INT32: {
                                         vpargs[i] = gc_malloc(sizeof(int32_t));
-                                        *(int8_t *)vpargs[i] = num;
+                                        *(int32_t *)vpargs[i] = num;
                                         break;
                                     }
                                     case PACK_FFI_TYPE_INT64: {
                                         vpargs[i] = gc_malloc(sizeof(int64_t));
-                                        *(int8_t *)vpargs[i] = num;
+                                        *(int64_t *)vpargs[i] = num;
                                         break;
                                     }
                                     case PACK_FFI_TYPE_UINT8: {
@@ -479,35 +514,20 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap
                                 }
                                 break;
                             }
-                                // vpargs[i] = &arg.value.number;
                             case PACK_VALUE_TYPE_STRING: {
                                 vpargs[i] = &arg.value.string;
                                 break;
                             }
-                            // case PACK_VALUE_TYPE_VECTOR:
-                            //     vpargs[i] = &arg.value.vector->values;
-                            //     break;
                             default: {
                                 printf("non ffi type in ffi call");
                                 exit(1);
                             }
                         }
-                        // if (val->type == ffi_type_double.type) {
-                        //     // double value = args[i].value.number;
-                        //     arg = &args[i].value.number;
-                        // }
-                        // else if (val->type == ffi_type_)
-                        // else {
-                        //     printf("bad ffi call\n");
-                        //     exit(1);
-                        // }
-                        // vpargs[i] = arg;
                     }
                     void *out;
-                    // out = op.value;
-                    ffi_call(&f.value.ffi.cif, FFI_FN(f.value.ffi.func), &out, vpargs);
+                    ffi_call(&f.value.ffi->cif, FFI_FN(f.value.ffi->func), &out, vpargs);
                     pack_value back;
-                    switch (f.value.ffi.ret_type.type_id) {
+                    switch (f.value.ffi->ret_type.type_id) {
                         case PACK_FFI_TYPE_INT8:
                             back.type = PACK_VALUE_TYPE_NUMBER;
                             back.value.number = (int8_t) out;
@@ -549,12 +569,12 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap
                         }
                         case PACK_FFI_TYPE_FLOAT: {
                             back.type = PACK_VALUE_TYPE_NUMBER;
-                            back.value.number = (float) (uint32_t) out;
+                            back.value.number = *(float*)&out;
                             break;
                         }
                         case PACK_FFI_TYPE_DOUBLE: {
                             back.type = PACK_VALUE_TYPE_NUMBER;
-                            back.value.number = (double) (uint64_t) out;
+                            back.value.number = *(double*)&out;
                             break;
                         }
                         case PACK_FFI_TYPE_VOID: {
@@ -567,11 +587,12 @@ pack_value runpack_program(pack_state *state, size_t capc, pack_local_value *cap
                             break;
                         }
                         case PACK_FFI_TYPE_POINTER: {
-
+                            back.type = PACK_VALUE_TYPE_POINTER;
+                            back.value.pointer = out;
+                            break;
                         }
                     }
                     state->stack[state->stackindex-1] = back;
-                    // exit(1);
                 }
                 break;
             }

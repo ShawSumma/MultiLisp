@@ -21,10 +21,13 @@ void pack_clib_print(pack_value argv) {
         case PACK_VALUE_TYPE_FUNCTION: {
             pack_func f = *argv.value.func;
             if (f.type == FUNC_FROM_C) {
-                printf("(function %p)", f.value.cfn);
+                printf("(function %p)", f.value.cfn.cfn);
+            }
+            else if (f.type == FUNC_FROM_FFI) {
+                printf("(functio %p)", f.value.ffi->func);
             }
             else {
-                printf("(function %lu)", f.value.place);
+                printf("(function %lu)", f.value.place.place);
             }
             break;
         }
