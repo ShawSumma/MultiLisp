@@ -24,7 +24,6 @@ struct pack_value;
 typedef struct pack_value pack_value;
 struct pack_number;
 typedef struct pack_number pack_number;
-// typedef double pack_number;
 struct pack_opcode;
 typedef struct pack_opcode pack_opcode;
 struct pack_program;
@@ -215,6 +214,7 @@ pack_value pack_value_pack_func(pack_state *, pack_func);
 pack_value pack_value_nil(pack_state *);
 
 void runfile(pack_state *, FILE *);
+pack_value pack_call(pack_state *, pack_func *, size_t, pack_value *);
 pack_value runpack_program(pack_state *, size_t, pack_local_value *, size_t, pack_value *, size_t);
 
 #include "numbers.h"

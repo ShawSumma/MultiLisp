@@ -242,11 +242,12 @@ class State:
             start : expr*
             expr : "(" (NAME | NUM | STR | FLOAT | expr)* ")"
                 | "[" (NAME | NUM | STR | FLOAT | expr)* "]"
-            NAME : /[^\s0-9\(\)\\."]+[^\s\(\)\\."]*/
+            NAME : /[^\s0-9\(\)\\.,"]+[^\s\(\)\\.,"]*/
             FLOAT : /\-?[0-9]+\.[0-9]+/
             NUM : /\-?[0-9]+/
             STR : /"(?:[^"\\\\]|\\\\.)*"/
             %ignore /\s+/
+            %ignore ","
             %ignore /;.*/
         """)
         ast = parser.parse(code)

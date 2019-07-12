@@ -44,14 +44,14 @@ int64_t pack_number_to_int64(pack_number n) {
     switch (n.type) {
         case PACK_NUMBER_TYPE_FLOATING: {
             if (!mpf_fits_slong_p(n.value.f)) {
-                gmp_fprintf(stderr, "%F cannot fit in any int64\n", n.value.f);
+                gmp_fprintf(stderr, "%Ff cannot fit in any int64\n", n.value.f);
                 exit(1);
             }
             return mpf_get_si(n.value.f);
         }
         case PACK_NUMBER_TYPE_INTEGER: {
             if (!mpz_fits_slong_p(n.value.i)) {
-                gmp_fprintf(stderr, "%Z cannot fit in any int64\n", n.value.i);
+                gmp_fprintf(stderr, "%Zd cannot fit in any int64\n", n.value.i);
                 exit(1);
             }
             return mpz_get_si(n.value.i);
@@ -63,14 +63,14 @@ uint64_t pack_number_to_uint64(pack_number n) {
     switch (n.type) {
         case PACK_NUMBER_TYPE_FLOATING: {
             if (!mpf_fits_ulong_p(n.value.f)) {
-                gmp_fprintf(stderr, "%F cannot fit in any int64\n", n.value.f);
+                gmp_fprintf(stderr, "%Ff cannot fit in any uint64\n", n.value.f);
                 exit(1);
             }
             return mpf_get_ui(n.value.f);
         }
         case PACK_NUMBER_TYPE_INTEGER: {
             if (!mpz_fits_ulong_p(n.value.i)) {
-                gmp_fprintf(stderr, "%Z cannot fit in any int64\n", n.value.i);
+                gmp_fprintf(stderr, "%Zd cannot fit in any uint64\n", n.value.i);
                 exit(1);
             }
             return mpz_get_ui(n.value.i);

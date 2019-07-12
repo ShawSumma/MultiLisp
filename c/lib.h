@@ -18,7 +18,11 @@ pack_value pack_lib_mul(pack_state *, size_t, pack_local_value *, size_t, pack_v
 pack_value pack_lib_div(pack_state *, size_t, pack_local_value *, size_t, pack_value *);
 
 pack_value pack_lib_vector(pack_state *, size_t, pack_local_value *, size_t, pack_value *);
-pack_value pack_lib_index(pack_state *, size_t, pack_local_value *, size_t, pack_value *);
+pack_value pack_lib_vector_index(pack_state *, size_t, pack_local_value *, size_t, pack_value *);
+pack_value pack_lib_vector_map(pack_state *, size_t, pack_local_value *, size_t, pack_value *);
+pack_value pack_lib_vector_range(pack_state *, size_t, pack_local_value *, size_t, pack_value *);
+pack_value pack_lib_vector_fold(pack_state *, size_t, pack_local_value *, size_t, pack_value *);
+pack_value pack_lib_vector_length(pack_state *, size_t, pack_local_value *, size_t, pack_value *);
 
 pack_value pack_lib_ffi_index(pack_state *, size_t, pack_local_value *, size_t, pack_value *);
 pack_value pack_lib_ffi_library(pack_state *, size_t, pack_local_value *, size_t, pack_value *);

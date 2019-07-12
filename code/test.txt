@@ -1,1 +1,1 @@
-(println (< 2.4 1))
+(define,upto,100),(define,range,(vector-range,upto)),(define,(square,n),(*,n,n)),(define nums,(vector-map,square range)),(define,total,(vector-fold,+,nums)),(println,total)

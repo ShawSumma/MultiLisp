@@ -1,8 +1,116 @@
 #include "interp.h"
 #include "lib.h"
 
+pack_value pack_lib_vector_range(pack_state *state,  size_t capc, pack_local_value *cap, size_t argc, pack_value *argv) {
+    pack_number n1;
+    pack_number n2;
+    if (argc == 2) {
+        if (argv[0].type != PACK_VALUE_TYPE_NUMBER) {
+            pack_error_argindex(state, "vector-range", 0);
+            exit(1);
+        }
+        if (argv[1].type != PACK_VALUE_TYPE_NUMBER) {
+            pack_error_argindex(state, "vector-range", 1);
+            exit(1);
+        }
+        n1 = argv[0].value.number;
+        n2 = argv[1].value.number;
+    }
+    else if (argc == 1) {
+        if (argv[0].type != PACK_VALUE_TYPE_NUMBER) {
+            pack_error_argindex(state, "vector-range", 0);
+            exit(1);
+        }
+        n1 = pack_number_new_int64(0);
+        n2 = argv[0].value.number;
+    }
+    else {
+        fprintf(stderr, "vector-range takes 1 or 2 arguments\n");
+        exit(1);
+    }
+    pack_vector *vec = pack_vector_empty(state);
+    size_t diff = pack_number_to_uint64(pack_number_sub(n2, n1));
+    pack_vector_reserve_more(state, vec, diff);
+    for (size_t i = 0; i < diff; i++) {
+        vec->values[i] = pack_value_num(state, pack_number_add(n1, pack_number_new_uint64(i)));
+    }
+    vec->count = diff;
+    pack_value ret;
+    ret.type = PACK_VALUE_TYPE_VECTOR;
+    ret.value.vector = vec;
+    return ret;
+}
 
-pack_value pack_lib_ffi_index(pack_state *state,  size_t capc, pack_local_value *cap, size_t argc, pack_value *argv) {
+pack_value pack_lib_vector_length(pack_state *state,  size_t capc, pack_local_value *cap, size_t argc, pack_value *argv) {
+    if (argc != 1) {
+        fprintf(stderr, "vector-length takes 1 argument\n");
+    }
+    if (argv[0].type != PACK_VALUE_TYPE_VECTOR) {
+        pack_error_argindex(state, "vector-length", 0);
+        exit(1);
+    }
+    return pack_value_num(state, pack_number_new_uint64(argv[0].value.vector->count));
+}
+
+pack_value pack_lib_vector_map(pack_state *state,  size_t capc, pack_local_value *cap, size_t argc, pack_value *argv) {
+    if (argc != 2) {
+        fprintf(stderr, "vector-map takes 2 arguments\n");
+    }
+    if (argv[0].type != PACK_VALUE_TYPE_FUNCTION) {
+        pack_error_argindex(state, "vector-map", 0);
+        exit(1);
+    }
+    if (argv[1].type != PACK_VALUE_TYPE_VECTOR) {
+        pack_error_argindex(state, "vector-map", 1);
+        exit(1);
+    }
+    pack_func *fun = argv[0].value.func;
+    pack_vector *invec = argv[1].value.vector;
+    pack_vector *outvec = pack_vector_empty(state);
+    size_t len = invec->count;
+    pack_vector_reserve_more(state, outvec, len);
+    for (size_t i = 0; i < len; i++) {
+        outvec->values[i] = pack_call(state, fun, 1, invec->values + i);
+    }
+    outvec->count = len;
+    pack_value ret;
+    ret.type = PACK_VALUE_TYPE_VECTOR;
+    ret.value.vector = outvec;
+    return ret;
+}
+
+pack_value pack_lib_vector_fold(pack_state *state,  size_t capc, pack_local_value *cap, size_t argc, pack_value *argv) {
+    if (argc != 2 && argc != 3) {
+        fprintf(stderr, "vector-fold takes 2 arguments\n");
+    }
+    if (argv[0].type != PACK_VALUE_TYPE_FUNCTION) {
+        pack_error_argindex(state, "vector-fold", 0);
+        exit(1);
+    }
+    if (argv[argc-1].type != PACK_VALUE_TYPE_VECTOR) {
+        pack_error_argindex(state, "vector-fold", argc-1);
+        exit(1);
+    }
+    pack_func *fun = argv[0].value.func;
+    pack_vector *vec = argv[argc-1].value.vector;
+    pack_value cur;
+    size_t begin;
+    if (argc == 2) {
+        cur = vec->values[0];
+        begin = 1;
+    }
+    else {
+        cur = argv[1];
+        begin = 0;
+    }
+    for (size_t i = begin; i < vec->count; i++) {
+        pack_value args[2] = {cur, vec->values[i]}; 
+        cur = pack_call(state, fun, 2, args);
+    }
+    return cur;
+}
+
+pack_value pack_lib_ffi_index(pack_state *state,  size_t capc, pack_local_value *cap, size_t argc, pack_value *argv) {    
     if (argc < 3) {
         fprintf(stderr, "ffi-index takes 3 or more arguments\n");
         exit(1);
@@ -84,7 +192,7 @@ pack_value pack_lib_vector(pack_state *state,  size_t capc, pack_local_value *ca
     return ret;
 }
 
-pack_value pack_lib_index(pack_state *state,  size_t capc, pack_local_value *cap, size_t argc, pack_value *argv) {
+pack_value pack_lib_vector_index(pack_state *state,  size_t capc, pack_local_value *cap, size_t argc, pack_value *argv) {
     if (argc < 3) {
         fprintf(stderr, "index takes 2 arguments\n");
         exit(1);
